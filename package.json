@@ -1,0 +1,80 @@
+{
+  "name": "devprodev-code-completion-vs-code",
+  "displayName": "devprodev-code-completion-vs-code",
+  "description": "A VS Code extension for code completion using LLMs.",
+  "version": "0.0.1",
+  "publisher": "University of Bari",
+  "engines": {
+    "vscode": "^1.94.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "extension.triggerSuggestion",
+        "title": "Trigger Code Suggestion"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "extension.triggerSuggestion",
+        "key": "ctrl+alt+s",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "configuration": {
+    "title": "LLM Code Completion Settings",
+    "properties": {
+      "llmCodeCompletion.displayMode": {
+        "type": "string",
+        "enum": ["inline", "sideWindow", "chatbot"],
+        "default": "inline",
+        "description": "Choose how code suggestions are displayed."
+      },
+      "llmCodeCompletion.triggerMode": {
+        "type": "string",
+        "enum": ["proactive", "manual"],
+        "default": "proactive",
+        "description": "Choose how code suggestions are triggered."
+      },
+      "llmCodeCompletion.suggestionGranularity": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 10,
+        "default": 5,
+        "description": "Adjust the granularity of code suggestions."
+      },
+      "llmCodeCompletion.includeDocumentation": {
+        "type": "boolean",
+        "default": false,
+        "description": "Include documentation references in suggestions."
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.94.0",
+    "@types/mocha": "^10.0.9",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "eslint": "^9.13.0",
+    "typescript": "^5.6.3",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
