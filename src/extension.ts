@@ -1,14 +1,10 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-
-// src/extension.ts
-
 import * as vscode from 'vscode';
-import { ChatbotViewProvider } from ".\\ChatbotViewProvider"; // Import the ChatbotViewProvider
+import { ChatbotPanel } from ".\\ChatbotPanel"; // Import the ChatbotPanel
 
 let typingTimeout: NodeJS.Timeout | undefined;
-const extensionName = "devprodev-code-completion-vs-code"
-const settingsName = "llmCodeCompletion"
+let chatbotProvider: ChatbotPanel;
+const extension_id = 'uniba.llm-code-completion'
+const settingsName = "llmCodeCompletion";
 
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration(settingsName);
@@ -18,21 +14,30 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeTextDocument(onTextChanged);
   }
 
+	/* Register commands */
   context.subscriptions.push(
-    vscode.commands.registerCommand('extension.triggerSuggestion', triggerSuggestionCommand)
+    vscode.commands.registerCommand('llmCodeCompletion.triggerSuggestion', triggerSuggestionCommand)
   );
 
-  vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);
+  context.subscriptions.push(
+    vscode.commands.registerCommand('llmCodeCompletion.showConfigParameters', () => {
+      let entire_config = vscode.workspace.getConfiguration();
+      console.log("Entire Configuration object:", entire_config);
 
-  // Register ChatbotViewProvider if displayMode is 'chatbot'
-  if (config.get<string>('displayMode') === 'chatbot') {
-    context.subscriptions.push(
-      vscode.window.registerWebviewViewProvider(
-        ChatbotViewProvider.viewType,
-        new ChatbotViewProvider(context)
-      )
-    );
-  }
+      let config = vscode.workspace.getConfiguration("llmCodeCompletion");
+      console.log("Extension Configuration object (llmCodeCompletion):", config);
+    })
+  )
+
+	// Register the command to open the chatbot panel
+	context.subscriptions.push(
+		vscode.commands.registerCommand('llmCodeCompletion.showChatbot', () => {
+			ChatbotPanel.createOrShow(context.extensionUri);
+		})
+	);
+	/* -----------  */
+
+  vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);
 }
 
 function onTextChanged(event: vscode.TextDocumentChangeEvent) {
@@ -66,7 +71,7 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
   }
 
   const config = vscode.workspace.getConfiguration(settingsName);
-  const displayMode = config.get<string>('displayMode', 'inline');
+  const displayMode = config.get<string>('displayMode', 'chatbot');
   const suggestionGranularity = config.get<number>('suggestionGranularity', 5);
   const includeDocumentation = config.get<boolean>('includeDocumentation', false);
 
@@ -109,7 +114,7 @@ async function getLLMSuggestion(context: string, granularity: number): Promise<s
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve(`// LLM suggestion based on granularity level ${granularity}`);
-	  vscode.window.showInformationMessage
+	  vscode.window.showInformationMessage;
     }, 1000);
   });
 }
@@ -118,6 +123,24 @@ function enrichSuggestionWithDocumentation(suggestion: string): string {
   return suggestion + `\n\n// Documentation references included.`;
 }
 
+function onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
+  if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
+    const config = vscode.workspace.getConfiguration(settingsName);
+    const triggerMode = config.get<string>('triggerMode', 'proactive');
+
+    if (triggerMode === 'proactive') {
+      vscode.workspace.onDidChangeTextDocument(onTextChanged);
+    } else {
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+        typingTimeout = undefined;
+      }
+    }
+  }
+}
+
+/* Suggestion showing functions */
+// Inline suggestion
 function showInlineSuggestion(editor: vscode.TextEditor, suggestion: string, position: vscode.Position) {
   const decorationType = vscode.window.createTextEditorDecorationType({
     after: {
@@ -131,6 +154,7 @@ function showInlineSuggestion(editor: vscode.TextEditor, suggestion: string, pos
   editor.setDecorations(decorationType, [{ range }]);
 }
 
+// Lateral window suggestion
 function showSuggestionInSideWindow(suggestion: string) {
   const panel = vscode.window.createWebviewPanel(
     'codeSuggestion',
@@ -141,27 +165,15 @@ function showSuggestionInSideWindow(suggestion: string) {
   panel.webview.html = `<html><body><pre>${suggestion}</pre></body></html>`;
 }
 
-function showSuggestionInChatbot(suggestion: string) {
-  // TODO Since the chatbot interface is implemented via ChatbotViewProvider,
-  // you can send a message to the webview here if needed.
-  vscode.window.showInformationMessage('Suggestion received in chatbot interface.');
+// Chatbot suggestion
+export function showSuggestionInChatbot(suggestion: string) {
+	vscode.window.showInformationMessage(suggestion)
+  ChatbotPanel.createOrShow(vscode.extensions.getExtension(extension_id)!.extensionUri);
+  ChatbotPanel.postMessage(suggestion);
 }
 
-function onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
-  if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
-    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
-    const triggerMode = config.get<string>('triggerMode', 'proactive');
 
-    if (triggerMode === 'proactive') {
-      vscode.workspace.onDidChangeTextDocument(onTextChanged);
-    } else {
-      if (typingTimeout) {
-        clearTimeout(typingTimeout);
-        typingTimeout = undefined;
-      }
-    }
-  }
-}
+/* --------- */
 
 export function deactivate() {
   if (typingTimeout) {

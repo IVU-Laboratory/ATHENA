@@ -1,9 +1,9 @@
 {
-  "name": "devprodev-code-completion-vs-code",
-  "displayName": "devprodev-code-completion-vs-code",
+  "name": "llm-code-completion",
+  "displayName": "LLM Code Completion",
   "description": "A VS Code extension for code completion using LLMs.",
   "version": "0.0.1",
-  "publisher": "University of Bari",
+  "publisher": "uniba",
   "engines": {
     "vscode": "^1.94.0"
   },
@@ -11,24 +11,35 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCommand:triggerSuggestion",
+    "onCommand:showConfigParameters"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "extension.triggerSuggestion",
+        "command": "llmCodeCompletion.triggerSuggestion",
         "title": "Trigger Code Suggestion"
+      },
+      {
+        "command": "llmCodeCompletion.showConfigParameters",
+        "title": "Show Configuration parameters"
+      }, 
+      {
+        "command": "llmCodeCompletion.showChatbot",
+        "title": "Open Chatbot Panel"
       }
     ],
     "keybindings": [
       {
-        "command": "extension.triggerSuggestion",
+        "command": "llmCodeCompletion.triggerSuggestion",
         "key": "ctrl+alt+s",
         "when": "editorTextFocus"
       }
     ]
   },
+
   "configuration": {
     "title": "LLM Code Completion Settings",
     "properties": {
@@ -48,7 +59,7 @@
         "type": "number",
         "minimum": 1,
         "maximum": 10,
-        "default": 5,
+        "default": 8,
         "description": "Adjust the granularity of code suggestions."
       },
       "llmCodeCompletion.includeDocumentation": {
