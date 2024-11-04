@@ -5,6 +5,7 @@ let typingTimeout: NodeJS.Timeout | undefined;
 let chatbotProvider: ChatbotPanel;
 const extension_id = 'uniba.llm-code-completion'
 const settingsName = "llmCodeCompletion";
+const inlineMaxLength = 50;
 
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration(settingsName);
@@ -71,7 +72,7 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
   }
 
   const config = vscode.workspace.getConfiguration(settingsName);
-  const displayMode = config.get<string>('displayMode', 'chatbot');
+  const displayMode = config.get<string>('displayMode', 'tooltip');
   const suggestionGranularity = config.get<number>('suggestionGranularity', 5);
   const includeDocumentation = config.get<boolean>('includeDocumentation', false);
 
@@ -89,11 +90,21 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
       case 'inline':
         showInlineSuggestion(editor, enrichedSuggestion, position);
         break;
+      case 'tooltip':
+        showSuggestionInTooltip(editor, enrichedSuggestion, position);
+        break;
       case 'sideWindow':
         showSuggestionInSideWindow(enrichedSuggestion);
         break;
       case 'chatbot':
         showSuggestionInChatbot(enrichedSuggestion);
+        break;
+      case 'hybrid': 
+        if (enrichedSuggestion.length <= inlineMaxLength) {
+          showInlineSuggestion(editor, enrichedSuggestion, position);
+        } else {
+          showSuggestionInChatbot(enrichedSuggestion)
+        }
         break;
     }
   }
@@ -150,9 +161,11 @@ function showInlineSuggestion(editor: vscode.TextEditor, suggestion: string, pos
     },
   });
 
+  position = position.translate(0, 4);
   const range = new vscode.Range(position, position);
   editor.setDecorations(decorationType, [{ range }]);
 }
+
 
 // Lateral window suggestion
 function showSuggestionInSideWindow(suggestion: string) {
@@ -165,11 +178,42 @@ function showSuggestionInSideWindow(suggestion: string) {
   panel.webview.html = `<html><body><pre>${suggestion}</pre></body></html>`;
 }
 
+
 // Chatbot suggestion
 export function showSuggestionInChatbot(suggestion: string) {
 	vscode.window.showInformationMessage(suggestion)
   ChatbotPanel.createOrShow(vscode.extensions.getExtension(extension_id)!.extensionUri);
   ChatbotPanel.postMessage(suggestion);
+}
+
+
+// Function to show a suggestion as a tooltip near the text cursor
+export function showSuggestionInTooltip(editor: vscode.TextEditor, suggestion: string, position: vscode.Position) {
+  if (!editor) {
+    vscode.window.showErrorMessage("No active editor found to show tooltip.");
+    return;
+  }
+
+  // Register a temporary hover provider for the current document
+  const hoverProvider = vscode.languages.registerHoverProvider(
+    { scheme: 'file', language: editor.document.languageId }, // Only for the active editor's language
+    {
+      provideHover(document, hoverPosition, token) {
+        if (hoverPosition.isEqual(position)) { // Ensure hover is shown only at the current cursor position
+          return new vscode.Hover(suggestion);
+        }
+        return undefined;
+      }
+    }
+  );
+
+  // Trigger a hover by moving the cursor slightly and then back
+  editor.selection = new vscode.Selection(position, position);
+
+  // Dispose of the hover provider after a short delay
+  setTimeout(() => {
+    hoverProvider.dispose();
+  }, 3000); // Show the tooltip for 3 seconds
 }
 
 
