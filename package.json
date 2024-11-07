@@ -23,10 +23,6 @@
         "title": "Trigger Code Suggestion"
       },
       {
-        "command": "llmCodeCompletion.showConfigParameters",
-        "title": "Show Configuration parameters"
-      }, 
-      {
         "command": "llmCodeCompletion.showChatbot",
         "title": "Open Chatbot Panel"
       }
@@ -37,35 +33,35 @@
         "key": "ctrl+alt+s",
         "when": "editorTextFocus"
       }
-    ]
-  },
-
-  "configuration": {
-    "title": "LLM Code Completion Settings",
-    "properties": {
-      "llmCodeCompletion.displayMode": {
-        "type": "string",
-        "enum": ["inline", "sideWindow", "chatbot"],
-        "default": "inline",
-        "description": "Choose how code suggestions are displayed."
-      },
-      "llmCodeCompletion.triggerMode": {
-        "type": "string",
-        "enum": ["proactive", "manual"],
-        "default": "proactive",
-        "description": "Choose how code suggestions are triggered."
-      },
-      "llmCodeCompletion.suggestionGranularity": {
-        "type": "number",
-        "minimum": 1,
-        "maximum": 10,
-        "default": 8,
-        "description": "Adjust the granularity of code suggestions."
-      },
-      "llmCodeCompletion.includeDocumentation": {
-        "type": "boolean",
-        "default": false,
-        "description": "Include documentation references in suggestions."
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "LLM Code Completion Settings",
+      "properties": {
+        "llmCodeCompletion.displayMode": {
+          "type": "string",
+          "enum": ["tooltip", "inline", "sideWindow", "chatbot", "hybrid"],
+          "default": "inline",
+          "description": "Choose how code suggestions are displayed."
+        },
+        "llmCodeCompletion.triggerMode": {
+          "type": "string",
+          "enum": ["proactive", "onDemand"],
+          "default": "proactive",
+          "description": "Choose how code suggestions are triggered."
+        },
+        "llmCodeCompletion.suggestionGranularity": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 8,
+          "description": "Adjust the granularity of code suggestions."
+        },
+        "llmCodeCompletion.includeDocumentation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include documentation references in suggestions."
+        }
       }
     }
   },
