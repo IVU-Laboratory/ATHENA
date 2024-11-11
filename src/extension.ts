@@ -1,17 +1,27 @@
 import * as vscode from 'vscode';
 import { ChatbotPanel } from ".\\ChatbotPanel"; // Import the ChatbotPanel
 import { TriggerMode, DisplayMode } from "./utilities/settings";
+import axios from 'axios';
+import {InlineCompletionProvider} from "./InlineCompletionProvider";
+
+const apiKey = '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'; 
 
 let typingTimeout: NodeJS.Timeout | undefined;
 let chatbotProvider: ChatbotPanel;
 
+let inlineCompletionDisposable: vscode.Disposable | undefined;
+
 const extension_id = 'uniba.llm-code-completion';
 const settingsName = "llmCodeCompletion";
 
+let providerInstance: InlineCompletionProvider | undefined;
+let currentDecorationType: vscode.TextEditorDecorationType | null = null;
+let currentSuggestion: string | null = null;
+let currentPosition: vscode.Position | null = null;
 // Default values for settings 
 var triggerMode = TriggerMode.OnDemand;
-var displayMode = DisplayMode.Tooltip;
-var suggestionGranularity = 5;  // 1-10, indicates the granularity of the suggestion
+var displayMode = DisplayMode.Chatbot;
+var suggestionGranularity = 10;  // 1-10, indicates the granularity of the suggestion
 var includeDocumentation = true;  // Can be true or false to include or not the documentation in the suggestion
 var inlineMaxLength = 50;  // only works when displayMode="hybrid". Defines the maximum length of suggestions to be shown inline 
 // var triggerShortcut = "ctrl+alt+s"; //this is already defined in the package.json file 
@@ -31,6 +41,27 @@ export function activate(context: vscode.ExtensionContext) {
     }
   }
 
+  if (displayMode === "inline") {
+    // Register command to toggle inline suggestions
+  const toggleCommand = vscode.commands.registerCommand('llmCodeCompletion.toggleInlineSuggestions', () => {
+    if (inlineCompletionDisposable) {
+      inlineCompletionDisposable.dispose();
+      inlineCompletionDisposable = undefined;
+      vscode.window.showInformationMessage('Inline suggestions disabled.');
+    } else {
+      providerInstance = new InlineCompletionProvider();
+      inlineCompletionDisposable = vscode.languages.registerInlineCompletionItemProvider(
+        { pattern: '**' }, // tutti i file
+        providerInstance
+      );
+      context.subscriptions.push(inlineCompletionDisposable);
+      vscode.window.showInformationMessage('Inline suggestions enabled.');
+    }
+  });
+
+  context.subscriptions.push(toggleCommand);
+  }
+
 	/* Register commands */
   context.subscriptions.push(
     vscode.commands.registerCommand('llmCodeCompletion.triggerSuggestion', async () => {
@@ -43,12 +74,16 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  
+
 	// Register the command to open the chatbot panel
 	context.subscriptions.push(
 		vscode.commands.registerCommand('llmCodeCompletion.showChatbot', () => {
 			ChatbotPanel.createOrShow(context.extensionUri);
 		})
   );
+
+  
 
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged); 
 }
@@ -66,7 +101,7 @@ function onTextChanged(event: vscode.TextDocumentChangeEvent) {
   typingTimeout = setTimeout(() => {
     if (hasSufficientContext(document)) {
       const position = event.contentChanges[0]?.range.end || new vscode.Position(0, 0);
-      triggerSuggestion(document, position);
+      //triggerSuggestion(document, position);  COMMENTATA DA CESARE PER TESTARE IL COMPLETIONITEM 
     }
   }, idleTime);
 }
@@ -123,19 +158,29 @@ function extractContext(document: vscode.TextDocument, position: vscode.Position
 
 
 async function getLLMSuggestion(context: string): Promise<string> {
-  let suggestion = new Promise<string>((resolve) => {
-      setTimeout(() => {
-        resolve(`// LLM suggestion based on granularity level ${suggestionGranularity}`); // TODO this is a placeholder for the LLM API call
-      vscode.window.showInformationMessage;
-      }, 1000);
-    }
-  );
+  let prompt = "";
+  prompt = includeDocumentation
+      ? `Provide a suggestion with documentation based on the context: ${context}`
+      : `Provide a suggestion based on the context: ${context}`;
+  
+
+    // Call the LLM API instead of the placeholder suggestion
+  let suggestion = await requestGPT4(prompt);
+  return suggestion;
+
+  //let suggestion = new Promise<string>((resolve) => {
+  //    setTimeout(() => {
+  //      resolve(`// LLM suggestion based on granularity level ${suggestionGranularity}`); // TODO this is a placeholder for the LLM API call
+  //    vscode.window.showInformationMessage;
+  //    }, 1000);
+  //  }
+  //);
   // Maybe the documentation might be asked within the prompt, so that getLLMSuggestion would take "includeDocumentation" as an input parameter and change the LLM prompt accordingly
-  let enrichedSuggestion = suggestion;
-  if (includeDocumentation) {
-    enrichedSuggestion = enrichSuggestionWithDocumentation(await suggestion);
-  }
-  return enrichedSuggestion;
+  //let enrichedSuggestion = suggestion;
+  //if (includeDocumentation) {
+  //  enrichedSuggestion = enrichSuggestionWithDocumentation(await suggestion);
+  //}
+  //return enrichedSuggestion;
 }
 
 
@@ -175,7 +220,13 @@ async function showSuggestionInTooltip(editor: vscode.TextEditor, suggestion: st
 
 // Inline suggestion TODO: probabilmente dovremo usare gli InlineCompletionProvider https://code.visualstudio.com/api/references/vscode-api#3414
 function showInlineSuggestion(editor: vscode.TextEditor, suggestion: string, position: vscode.Position) {
-  const decorationType = vscode.window.createTextEditorDecorationType({
+  if (currentDecorationType) {
+    currentDecorationType.dispose();
+    vscode.commands.executeCommand('setContext', 'inlineSuggestionVisible', false);
+  }
+
+  // Create a new decoration type for the inline suggestion
+  currentDecorationType = vscode.window.createTextEditorDecorationType({
     after: {
       contentText: suggestion,
       color: 'gray',
@@ -183,10 +234,20 @@ function showInlineSuggestion(editor: vscode.TextEditor, suggestion: string, pos
     },
   });
 
+  currentSuggestion = suggestion;
+  currentPosition = position;
+
   position = position.translate(0, 4);
   const range = new vscode.Range(position, position);
-  editor.setDecorations(decorationType, [{ range }]);
+  editor.setDecorations(currentDecorationType, [{ range }]);
+  vscode.commands.executeCommand('setContext', 'inlineSuggestionVisible', true);
 }
+
+function showInlineSuggestionItem(editor: vscode.TextEditor, suggestion: string, position: vscode.Position) {
+    let completionItem = new vscode.InlineCompletionItem(suggestion);
+}
+
+
 
 
 // Lateral window suggestion 
@@ -204,7 +265,7 @@ function showSuggestionInSideWindow(suggestion: string) {
 
 // Chatbot suggestion
 export function showSuggestionInChatbot(suggestion: string) {
-	vscode.window.showInformationMessage(suggestion)
+	vscode.window.showInformationMessage(suggestion);
   ChatbotPanel.createOrShow(vscode.extensions.getExtension(extension_id)!.extensionUri);
   ChatbotPanel.postMessage(suggestion);
 }
@@ -304,7 +365,40 @@ export function updateSettings(){
 /* --------- */
 
 export function deactivate() {
+  if (inlineCompletionDisposable) {
+    inlineCompletionDisposable.dispose();
+  }
   if (typingTimeout) {
     clearTimeout(typingTimeout);
+  }
+}
+
+
+async function requestGPT4(prompt: string): Promise<string> {
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4-turbo',
+        messages: [
+          { role: 'system', content: 'You are a code completion tool. You must only produce code that completes the input code.' },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: suggestionGranularity*20,
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    console.log(response.data.choices[0].message.content);
+    return response.data.choices[0].message.content;
+  } catch (error) {
+    console.error('Error communicating with GPT-4:', error);
+    return '';
   }
 }

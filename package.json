@@ -18,6 +18,7 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
+     
       {
         "command": "llmCodeCompletion.triggerSuggestion",
         "title": "Trigger Code Suggestion"
@@ -25,12 +26,21 @@
       {
         "command": "llmCodeCompletion.showChatbot",
         "title": "Open Chatbot Panel"
+      },
+      {
+        "command": "llmCodeCompletion.toggleInlineSuggestions",
+        "title": "Toggle Inline Suggestions"
       }
     ],
     "keybindings": [
       {
         "command": "llmCodeCompletion.triggerSuggestion",
         "key": "ctrl+alt+s",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "llmCodeCompletion.toggleInlineSuggestions",
+        "key": "ctrl+alt+i",
         "when": "editorTextFocus"
       }
     ],
@@ -40,13 +50,22 @@
       "properties": {
         "llmCodeCompletion.displayMode": {
           "type": "string",
-          "enum": ["tooltip", "inline", "sideWindow", "chatbot", "hybrid"],
+          "enum": [
+            "tooltip",
+            "inline",
+            "sideWindow",
+            "chatbot",
+            "hybrid"
+          ],
           "default": "inline",
           "description": "Choose how code suggestions are displayed."
         },
         "llmCodeCompletion.triggerMode": {
           "type": "string",
-          "enum": ["proactive", "onDemand"],
+          "enum": [
+            "proactive",
+            "onDemand"
+          ],
           "default": "proactive",
           "description": "Choose how code suggestions are triggered."
         },
@@ -74,14 +93,17 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.94.0",
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
+    "@types/vscode": "^1.94.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
-    "eslint": "^9.13.0",
-    "typescript": "^5.6.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.13.0",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "axios": "^1.7.7"
   }
 }
