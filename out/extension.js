@@ -47,7 +47,7 @@ let currentSuggestion = null;
 let currentPosition = null;
 // Default values for settings 
 var triggerMode = settings_1.TriggerMode.OnDemand;
-var displayMode = settings_1.DisplayMode.Chatbot;
+var displayMode = settings_1.DisplayMode.Tooltip;
 var suggestionGranularity = 10; // 1-10, indicates the granularity of the suggestion
 var includeDocumentation = true; // Can be true or false to include or not the documentation in the suggestion
 var inlineMaxLength = 50; // only works when displayMode="hybrid". Defines the maximum length of suggestions to be shown inline 
@@ -56,30 +56,17 @@ var tooltipProactiveProvider; // The completion provider for the tooltip suggest
 function activate(context) {
     console.log("Starting LLM Code completion extension");
     updateSettings(); // Set the values from the settings 
-    if (triggerMode === 'proactive') {
+    displayMode = settings_1.DisplayMode.Inline;
+    triggerMode = settings_1.TriggerMode.Proactive;
+    if (triggerMode.toLowerCase() === "proactive") {
         vscode.workspace.onDidChangeTextDocument(onTextChanged);
-        if (displayMode === "tooltip") {
+        if (displayMode.toLowerCase() === "tooltip") {
             // Register the completion provider with LLM suggestion for PROACTIVE tooltip display
             registerCompletionProvider();
         }
     }
-    if (displayMode === "inline") {
-        // Register command to toggle inline suggestions
-        const toggleCommand = vscode.commands.registerCommand('llmCodeCompletion.toggleInlineSuggestions', () => {
-            if (inlineCompletionDisposable) {
-                inlineCompletionDisposable.dispose();
-                inlineCompletionDisposable = undefined;
-                vscode.window.showInformationMessage('Inline suggestions disabled.');
-            }
-            else {
-                providerInstance = new InlineCompletionProvider_1.InlineCompletionProvider();
-                inlineCompletionDisposable = vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, // tutti i file
-                providerInstance);
-                context.subscriptions.push(inlineCompletionDisposable);
-                vscode.window.showInformationMessage('Inline suggestions enabled.');
-            }
-        });
-        context.subscriptions.push(toggleCommand);
+    if (displayMode.toLowerCase() === "inline" && triggerMode.toLowerCase() === "proactive") {
+        registerInlineCompletionItemProvider(context);
     }
     /* Register commands */
     context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.triggerSuggestion', async () => {
@@ -95,6 +82,28 @@ function activate(context) {
         ChatbotPanel_1.ChatbotPanel.createOrShow(context.extensionUri);
     }));
     vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);
+    console.log("Display mode: " + displayMode);
+    console.log("Trigger mode: " + triggerMode);
+}
+function registerInlineCompletionItemProvider(context) {
+    console.log("Registering inline completion provider");
+    // Register command to toggle inline suggestions
+    const toggleCommand = vscode.commands.registerCommand('llmCodeCompletion.toggleInlineSuggestions', () => {
+        if (inlineCompletionDisposable) {
+            inlineCompletionDisposable.dispose();
+            inlineCompletionDisposable = undefined;
+            vscode.window.showInformationMessage('Inline suggestions disabled.');
+        }
+        else {
+            providerInstance = new InlineCompletionProvider_1.InlineCompletionProvider();
+            inlineCompletionDisposable = vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, // tutti i file
+            providerInstance);
+            context.subscriptions.push(inlineCompletionDisposable);
+            vscode.window.showInformationMessage('Inline suggestions enabled.');
+        }
+    });
+    context.subscriptions.push(toggleCommand);
+    triggerInlineSuggestions();
 }
 /* Callback used by the editor for proactive code completion */
 function onTextChanged(event) {
@@ -106,12 +115,21 @@ function onTextChanged(event) {
     typingTimeout = setTimeout(() => {
         if (hasSufficientContext(document)) {
             const position = event.contentChanges[0]?.range.end || new vscode.Position(0, 0);
-            //triggerSuggestion(document, position);  COMMENTATA DA CESARE PER TESTARE IL COMPLETIONITEM 
+            triggerSuggestion(document, position); //COMMENTATA DA CESARE PER TESTARE IL COMPLETIONITEM 
         }
     }, idleTime);
 }
+// Helper function to trigger inline suggestions in the active editor
+function triggerInlineSuggestions() {
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+        vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
+    }
+}
 async function triggerSuggestion(document, position) {
     // Generate suggestions only if there is sufficient context 
+    console.log("triggering suggestion with Display mode: " + displayMode);
+    console.log("triggering suggestion with Trigger mode: " + triggerMode);
     if (!hasSufficientContext(document)) {
         return;
     }
@@ -121,26 +139,33 @@ async function triggerSuggestion(document, position) {
     if (editor) {
         switch (displayMode) {
             case 'tooltip': // this should only be called when the user asks for a suggestion (not proactively - for that, there is the completionProvider)
+                console.log("Showing tooltip suggestion");
                 showSuggestionInTooltip(editor, suggestion, position);
                 break;
             case 'inline':
-                showInlineSuggestion(editor, suggestion, position);
+                console.log("Showing inline suggestion");
+                //showInlineSuggestion(editor, suggestion, position);
                 break;
             case 'sideWindow':
+                console.log("Showing sidewindow suggestion");
                 showSuggestionInSideWindow(suggestion);
                 break;
             case 'chatbot':
+                console.log("Showing chatbot suggestion");
                 showSuggestionInChatbot(suggestion);
                 break;
             case 'hybrid':
                 if (suggestion.length <= inlineMaxLength) {
-                    showInlineSuggestion(editor, suggestion, position);
+                    //showInlineSuggestion(editor, suggestion, position);
                 }
                 else {
                     showSuggestionInSideWindow(suggestion);
                 }
                 break;
         }
+    }
+    else {
+        console.log("No editor.");
     }
 }
 function hasSufficientContext(document) {
@@ -203,34 +228,40 @@ async function showSuggestionInTooltip(editor, suggestion, position) {
     });
 }
 // Inline suggestion TODO: probabilmente dovremo usare gli InlineCompletionProvider https://code.visualstudio.com/api/references/vscode-api#3414
-function showInlineSuggestion(editor, suggestion, position) {
-    if (currentDecorationType) {
-        currentDecorationType.dispose();
-        vscode.commands.executeCommand('setContext', 'inlineSuggestionVisible', false);
-    }
-    // Create a new decoration type for the inline suggestion
-    currentDecorationType = vscode.window.createTextEditorDecorationType({
-        after: {
-            contentText: suggestion,
-            color: 'gray',
-            fontStyle: 'italic',
-        },
-    });
-    currentSuggestion = suggestion;
-    currentPosition = position;
-    position = position.translate(0, 4);
-    const range = new vscode.Range(position, position);
-    editor.setDecorations(currentDecorationType, [{ range }]);
-    vscode.commands.executeCommand('setContext', 'inlineSuggestionVisible', true);
+/*
+function showInlineSuggestion(editor: vscode.TextEditor, suggestion: string, position: vscode.Position) {
+  if (currentDecorationType) {
+    currentDecorationType.dispose();
+    vscode.commands.executeCommand('setContext', 'inlineSuggestionVisible', false);
+  }
+
+  // Create a new decoration type for the inline suggestion
+  currentDecorationType = vscode.window.createTextEditorDecorationType({
+    after: {
+      contentText: suggestion,
+      color: 'gray',
+      fontStyle: 'italic',
+    },
+  });
+
+  currentSuggestion = suggestion;
+  currentPosition = position;
+
+  position = position.translate(0, 4);
+  const range = new vscode.Range(position, position);
+  editor.setDecorations(currentDecorationType, [{ range }]);
+  vscode.commands.executeCommand('setContext', 'inlineSuggestionVisible', true);
 }
-function showInlineSuggestionItem(editor, suggestion, position) {
+
+function showInlineSuggestionItem(editor: vscode.TextEditor, suggestion: string, position: vscode.Position) {
     let completionItem = new vscode.InlineCompletionItem(suggestion);
 }
+*/
 // Lateral window suggestion 
 function showSuggestionInSideWindow(suggestion) {
     // TODO: do not create multiple panels => define one panel globally and check if it exists before creating it?
     const panel = vscode.window.createWebviewPanel('codeSuggestion', 'Code Suggestion', vscode.ViewColumn.Beside, {});
-    panel.webview.html = `<html><body><pre>${suggestion}</pre></body></html>`;
+    panel.webview.html = `<html><body><pre  style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
 }
 // Chatbot suggestion
 function showSuggestionInChatbot(suggestion) {
@@ -289,6 +320,7 @@ function getTooltipCompletionProvider() {
 }
 /* ------------------ */
 function onConfigurationChanged(event) {
+    console.log(`Configuration changed: ${event.affectsConfiguration('llmCodeCompletion.triggerMode')}`);
     updateSettings();
     if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
         console.log(`Trigger mode changed to ${triggerMode}`);
@@ -309,11 +341,11 @@ function onConfigurationChanged(event) {
 /* Updates the global parameters based on the settings specified by the user (or by default) */
 function updateSettings() {
     const config = vscode.workspace.getConfiguration(settingsName);
-    triggerMode = config.get('triggerMode', triggerMode);
-    displayMode = config.get('displayMode', displayMode);
-    suggestionGranularity = config.get('suggestionGranularity', suggestionGranularity);
-    includeDocumentation = config.get('includeDocumentation', includeDocumentation);
-    inlineMaxLength = config.get('inlineMaxLength', inlineMaxLength);
+    //triggerMode = config.get<TriggerMode>('triggerMode', triggerMode);
+    //displayMode = config.get<DisplayMode>('displayMode', displayMode);
+    //suggestionGranularity = config.get<number>('suggestionGranularity', suggestionGranularity);
+    //includeDocumentation = config.get<boolean>('includeDocumentation', includeDocumentation);
+    //inlineMaxLength = config.get<number>('inlineMaxLength', inlineMaxLength);
 }
 /* --------- */
 function deactivate() {

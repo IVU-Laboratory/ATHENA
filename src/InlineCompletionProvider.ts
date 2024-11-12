@@ -16,7 +16,7 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
     ): Promise<vscode.InlineCompletionList | undefined> {
       
       const textBeforeCursor = document.getText(
-        new vscode.Range(new vscode.Position(position.line, 0), position)
+        new vscode.Range(new vscode.Position(0, 0), position)
       );
   
       // Call the requestGPT4 function to get suggestions (ensure this function is available here)
