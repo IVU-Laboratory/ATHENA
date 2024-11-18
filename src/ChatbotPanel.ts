@@ -7,7 +7,7 @@ import axios from 'axios';
 
 export class ChatbotPanel {
   private apiKey = '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'; 
-
+  private contextText: string = '';
   public static currentPanel: ChatbotPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
@@ -34,10 +34,11 @@ export class ChatbotPanel {
     });
   }
 
-  public static createOrShow(extensionUri: vscode.Uri) {
+  public static createOrShow(extensionUri: vscode.Uri, documentText: string) {
     // If the panel already exists, show it
     if (ChatbotPanel.currentPanel) {
       ChatbotPanel.currentPanel._panel.reveal(vscode.ViewColumn.Beside);
+      this.updateContext(documentText);
       return;
     }
 
@@ -53,6 +54,13 @@ export class ChatbotPanel {
     );
 
     ChatbotPanel.currentPanel = new ChatbotPanel(panel, extensionUri);
+    this.updateContext(documentText);
+  }
+
+  private static updateContext(updatedText: string) {
+    if (this.currentPanel) {
+      this.currentPanel.contextText = updatedText;
+    }
   }
 
   public static postMessage(message: string) {
@@ -64,13 +72,14 @@ export class ChatbotPanel {
 
     // Method to handle the user's message from the webview
     private async handleUserMessage(text: string) {
-      // Process the user's message here, for example:
-      const question = `User: ${text}`;
+       
+      
+      const question = text;
       // Send a response back to the webview
-      this._panel.webview.postMessage({ text: question });
+      this._panel.webview.postMessage({ text: question, type: "user" });
 
-      const response = 'Assistant: ' + await this.requestGPT4(question);
-      this._panel.webview.postMessage({ text: response });
+      const response = await this.requestGPT4(question + "\nContext code for the response:\n"+this.contextText);
+      this._panel.webview.postMessage({ text: response, type: "assistant" });
 
     }
 	

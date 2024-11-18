@@ -30,6 +30,10 @@
       {
         "command": "llmCodeCompletion.toggleInlineSuggestions",
         "title": "Toggle Inline Suggestions"
+      },
+      {
+        "command": "llmCodeCompletion.openSettingsWizard",
+        "title": "Open Settings Wizard"
       }
     ],
     "keybindings": [
@@ -42,7 +46,13 @@
         "command": "llmCodeCompletion.toggleInlineSuggestions",
         "key": "ctrl+alt+i",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "llmCodeCompletion.openSettingsWizard",
+        "key": "ctrl+alt+t",
+        "when": "editorTextFocus"
       }
+      
     ],
     "configuration": {
       "type": "object",

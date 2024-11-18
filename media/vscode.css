@@ -113,3 +113,22 @@ textarea::placeholder {
 	display: inline;
 }
 
+span.assistant {
+	color: "green"; 
+	font-weight: bold;
+}
+
+div.assistant {
+	text-align: right;
+	margin-bottom: 5px;
+}
+
+div.user {
+	text-align: left;
+	margin-bottom: 5px;
+}
+
+span.user {
+	font-weight: bold;
+	color: "light-blue"; 
+}

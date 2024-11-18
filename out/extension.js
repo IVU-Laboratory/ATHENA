@@ -32,6 +32,7 @@ exports.updateSettings = updateSettings;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const ChatbotPanel_1 = require(".\\ChatbotPanel"); // Import the ChatbotPanel
+const SettingsWizardPanel_1 = require("./SettingsWizardPanel");
 const settings_1 = require("./utilities/settings");
 const axios_1 = __importDefault(require("axios"));
 const InlineCompletionProvider_1 = require("./InlineCompletionProvider");
@@ -41,6 +42,7 @@ let chatbotProvider;
 let inlineCompletionDisposable;
 const extension_id = 'uniba.llm-code-completion';
 const settingsName = "llmCodeCompletion";
+let toggle_suggestions = true;
 let providerInstance;
 let currentDecorationType = null;
 let currentSuggestion = null;
@@ -52,21 +54,28 @@ var suggestionGranularity = 10; // 1-10, indicates the granularity of the sugges
 var includeDocumentation = true; // Can be true or false to include or not the documentation in the suggestion
 var inlineMaxLength = 50; // only works when displayMode="hybrid". Defines the maximum length of suggestions to be shown inline 
 // var triggerShortcut = "ctrl+alt+s"; //this is already defined in the package.json file 
+var toggleCompletionButton;
 var tooltipProactiveProvider; // The completion provider for the tooltip suggestions 
 function activate(context) {
     console.log("Starting LLM Code completion extension");
+    const openSettingsCommand = vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', () => {
+        SettingsWizardPanel_1.SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
+    });
+    context.subscriptions.push(openSettingsCommand);
     updateSettings(); // Set the values from the settings 
     displayMode = settings_1.DisplayMode.Inline;
     triggerMode = settings_1.TriggerMode.Proactive;
-    if (triggerMode.toLowerCase() === "proactive") {
-        vscode.workspace.onDidChangeTextDocument(onTextChanged);
-        if (displayMode.toLowerCase() === "tooltip") {
-            // Register the completion provider with LLM suggestion for PROACTIVE tooltip display
-            registerCompletionProvider();
-        }
-    }
     if (displayMode.toLowerCase() === "inline" && triggerMode.toLowerCase() === "proactive") {
         registerInlineCompletionItemProvider(context);
+    }
+    else {
+        if (triggerMode.toLowerCase() === "proactive") {
+            vscode.workspace.onDidChangeTextDocument(onTextChanged);
+            if (displayMode.toLowerCase() === "tooltip") {
+                // Register the completion provider with LLM suggestion for PROACTIVE tooltip display
+                registerCompletionProvider();
+            }
+        }
     }
     /* Register commands */
     context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.triggerSuggestion', async () => {
@@ -79,8 +88,14 @@ function activate(context) {
     }));
     // Register the command to open the chatbot panel
     context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.showChatbot', () => {
-        ChatbotPanel_1.ChatbotPanel.createOrShow(context.extensionUri);
+        const editor = vscode.window.activeTextEditor;
+        var documentText = "";
+        if (editor) {
+            documentText = editor.document.getText();
+        }
+        ChatbotPanel_1.ChatbotPanel.createOrShow(context.extensionUri, documentText);
     }));
+    //addButtonsToEditor(context); NON FUNZIONA
     vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);
     console.log("Display mode: " + displayMode);
     console.log("Trigger mode: " + triggerMode);
@@ -152,7 +167,7 @@ async function triggerSuggestion(document, position) {
                 break;
             case 'chatbot':
                 console.log("Showing chatbot suggestion");
-                showSuggestionInChatbot(suggestion);
+                showSuggestionInChatbot(suggestion, contextText);
                 break;
             case 'hybrid':
                 if (suggestion.length <= inlineMaxLength) {
@@ -167,6 +182,53 @@ async function triggerSuggestion(document, position) {
     else {
         console.log("No editor.");
     }
+}
+function addButtonsToEditor(context) {
+    const visibleEditors = vscode.window.visibleTextEditors;
+    var editor;
+    // Create decoration for the toggle button
+    toggleCompletionButton = vscode.window.createTextEditorDecorationType({
+        after: {
+            contentText: ' [Suggestions: On/Off] ', // Button label
+            backgroundColor: new vscode.ThemeColor('button.background'),
+            color: new vscode.ThemeColor('button.foreground'),
+            border: '1px solid',
+            borderColor: new vscode.ThemeColor('button.border'),
+            margin: '0 0 0 10px',
+        },
+    });
+    // Get the range for the first line
+    for (editor of visibleEditors) {
+        const range = editor.document.lineAt(0).range;
+        // Apply the decorations
+        editor.setDecorations(toggleCompletionButton, [range]);
+    }
+    // editor.setDecorations(additionalFunctionButton, [range]);
+}
+function toggleAutoCompletion() {
+    toggle_suggestions = !toggle_suggestions;
+    // Update button text
+    const newText = toggle_suggestions ? ' [Auto-Complete: On] ' : ' [Auto-Complete: Off] ';
+    toggleCompletionButton.dispose();
+}
+function handleButtonClicks() {
+    vscode.window.onDidChangeTextEditorSelection((event) => {
+        const editor = event.textEditor;
+        const cursorPosition = editor.selection.active;
+        const extension_uri = vscode.extensions.getExtension(extension_id).extensionUri;
+        // Get the first line's range
+        const firstLineRange = editor.document.lineAt(0).range;
+        // Check if the cursor is within the range of the toggle button
+        if (cursorPosition.line === 0) {
+            const cursorChar = cursorPosition.character;
+            if (cursorChar >= firstLineRange.start.character && cursorChar <= firstLineRange.end.character + 20) {
+                vscode.commands.executeCommand('llmCodeCompletion.toggleInlineSuggestions');
+            }
+            else if (cursorChar > firstLineRange.end.character + 20 && cursorChar <= firstLineRange.end.character + 40) {
+                SettingsWizardPanel_1.SettingsWizardPanel.createOrShow(extension_uri);
+            }
+        }
+    });
 }
 function hasSufficientContext(document) {
     const MIN_CONTEXT_LENGTH = 10;
@@ -263,10 +325,10 @@ function showSuggestionInSideWindow(suggestion) {
     const panel = vscode.window.createWebviewPanel('codeSuggestion', 'Code Suggestion', vscode.ViewColumn.Beside, {});
     panel.webview.html = `<html><body><pre  style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
 }
-// Chatbot suggestion
-function showSuggestionInChatbot(suggestion) {
+// Chatbot suggestion (potrebbe non servire)
+function showSuggestionInChatbot(suggestion, contextText) {
     vscode.window.showInformationMessage(suggestion);
-    ChatbotPanel_1.ChatbotPanel.createOrShow(vscode.extensions.getExtension(extension_id).extensionUri);
+    ChatbotPanel_1.ChatbotPanel.createOrShow(vscode.extensions.getExtension(extension_id).extensionUri, contextText);
     ChatbotPanel_1.ChatbotPanel.postMessage(suggestion);
 }
 // Tooltip Suggestion
