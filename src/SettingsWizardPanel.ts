@@ -26,10 +26,10 @@ export class SettingsWizardPanel {
       const config = vscode.workspace.getConfiguration('llmCodeCompletion');
       panel.webview.postMessage({
         type: 'initialize',
-        displayMode: config.get('displayMode', 'inline'),
-        triggerMode: config.get('triggerMode', 'proactive'),
-        suggestionGranularity: config.get('suggestionGranularity', 8),
-        includeDocumentation: config.get('includeDocumentation', false),
+        displayMode: config.get('displayMode'),
+        triggerMode: config.get('triggerMode'),
+        suggestionGranularity: config.get('suggestionGranularity'),
+        includeDocumentation: config.get('includeDocumentation'),
       });
     }
   }
@@ -75,120 +75,171 @@ export class SettingsWizardPanel {
           }
 
           function saveSettings() {
-            const displayMode = document.getElementById('displayMode').value;
-            const triggerMode = document.getElementById('triggerMode').value;
-            const suggestionGranularity = document.getElementById('suggestionGranularity').value;
-            const includeDocumentation = document.getElementById('includeDocumentation').checked;
-  
-            vscode.postMessage({
-              type: 'save',
-              displayMode,
-              triggerMode,
-              suggestionGranularity: Number(suggestionGranularity),
-              includeDocumentation
-            });
-          }
+      const settings = {
+        displayMode: document.getElementById('displayMode').value,
+        triggerMode: document.getElementById('triggerMode').value,
+        suggestionGranularity: document.getElementById('suggestionGranularity').value,
+        includeDocumentation: document.getElementById('includeDocumentation').checked,
+        shortcuts: {
+          toggleSuggestion: document.getElementById('shortcutToggle').value,
+          triggerSuggestion: document.getElementById('shortcutTrigger').value,
+          openSettings: document.getElementById('shortcutSettings').value,
+          openChatbot: document.getElementById('shortcutChatbot').value
+        }
+      };
+      console.log('Settings saved:', settings);
+      alert('Settings have been saved!');
+    }
 
         
 
         </script>
         <style>
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f9;
-    color: #333;
-    width:400px;
-    box-sizing: border-box;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-}
 
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  font-size: 13px;
+  padding: 10px;
+  background-color: #F8F8FF;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
 h1 {
-    color: #444;
-}
-form {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
-}
-label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: bold;
-}
-select, input[type="checkbox"] {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-.slider-container {
-    margin-bottom: 20px;
-}
-.slider-container label {
-    margin-bottom: 5px;
-}
-.slider-container input[type="range"] {
-    width: 100%;
-}
-.slider-value {
-    text-align: center;
-    text-weight: bold;
-    font-size: 1.2em;
-    margin-top: 5px;
-    color: #444;
-}
-button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    width: 100%;
-}
-button:hover {
-    background-color: #45a049;
+  color: #fff; /* Bright header color */
+  margin-bottom: 20px;
+  font-size: 2em;
+  text-align: center;
 }
 
-        </style>
+form {
+  width: 100%;
+  max-width: 600px;
+}
+
+.settings-group {
+  background: #fff;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.settings-group h2 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #fff;
+  background-color: #4444aa; /* Stylish header background */
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-size: 1.2em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+select, input[type="checkbox"], input[type="text"] {
+   width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #555; /* Subtle border for inputs */
+  border-radius: 4px;
+  font-size: 13px;
+  color: dark-gray; /* Light text inside inputs */
+  box-sizing: border-box;
+}
+
+input[type="text"]:focus, 
+select:focus {
+  outline: none;
+  border-color: #8888ff; /* Highlight border on focus */
+}
+  
+.slider-container {
+  margin-bottom: 20px;
+}
+
+.slider-container input[type="range"] {
+  width: 100%;
+}
+
+.slider-value {
+  text-align: center;
+  font-size: 1.2em;
+  margin-top: 5px;
+  color: #444;
+}
+
+button {
+   background-color: #4CAF50;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  width: 100%;
+  transition: background-color 0.3s ease-in-out;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+</style>
               </head>
       <body>
-        <h1>Code Completion Settings</h1>
   <form>
-    <label for="displayMode">Suggestion mode:</label>
-    <select id="displayMode">
-      <option value="tooltip">Tooltip</option>
-      <option value="inline">Inline</option>
-      <option value="sideWindow">Side window</option>
-      <option value="hybrid">Hybrid</option>
-    </select>
+    <!-- General Settings Section -->
+    <div class="settings-group">
+      <h2>General Settings</h2>
+      <label for="displayMode">Completion mode:</label>
+      <select id="displayMode">
+        <option value="tooltip">Tooltip</option>
+        <option value="inline">Inline</option>
+        <option value="sideWindow">Side Window</option>
+        <option value="chatbot">Chatbot</option>
+        <option value="hybrid">Hybrid</option>
+      </select>
 
-    <label for="triggerMode">Timing:</label>
-    <select id="triggerMode">
-      <option value="proactive">Proactive</option>
-      <option value="onDemand">On demand</option>
-    </select>
+      <label for="triggerMode">Completion trigger:</label>
+      <select id="triggerMode">
+        <option value="proactive">Proactive</option>
+        <option value="onDemand">Manual</option>
+      </select>
 
-    <div class="slider-container">
-      <label for="suggestionGranularity">Suggestion lenght (1-10):</label>
-      <input type="range" id="suggestionGranularity" min="1" max="10" value="8" oninput="updateSliderValue(this.value)" />
-      <div class="slider-value" id="sliderValue">8</div>
+      <div class="slider-container">
+        <label for="suggestionGranularity">Suggestion length (1-5):</label>
+        <input type="range" id="suggestionGranularity" min="1" max="5" value="5" oninput="updateSliderValue(this.value)" />
+        <div class="slider-value" id="sliderValue">5</div>
+      </div>
+
+      <label for="includeDocumentation">Provide source of completion:</label>
+      <input type="checkbox" id="includeDocumentation" />
     </div>
 
-    <div >Provide source code documentation:</div>
-    <input type="checkbox" id="includeDocumentation" />
+    <!-- Keyboard Shortcuts Section -->
+    <div class="settings-group">
+      <h2>Keyboard Shortcuts</h2>
+      <label for="shortcutToggle">Toggle Suggestion Activation:</label>
+      <input type="text" id="shortcutToggle" value="Ctrl+Alt+S" />
+
+      <label for="shortcutTrigger">Trigger Suggestion:</label>
+      <input type="text" id="shortcutTrigger" value="Ctrl+Alt+R" />
+
+      <label for="shortcutSettings">Open Settings:</label>
+      <input type="text" id="shortcutSettings" value="Ctrl+Alt+T" />
+
+      <label for="shortcutChatbot">Open Chatbot:</label>
+      <input type="text" id="shortcutChatbot" value="Ctrl+Alt+P" />
+    </div>
 
     <button type="button" onclick="saveSettings()">Save Settings</button>
   </form>

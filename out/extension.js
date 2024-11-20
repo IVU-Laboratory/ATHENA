@@ -62,9 +62,8 @@ function activate(context) {
         SettingsWizardPanel_1.SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
     });
     context.subscriptions.push(openSettingsCommand);
-    updateSettings(); // Set the values from the settings 
-    displayMode = settings_1.DisplayMode.Inline;
-    triggerMode = settings_1.TriggerMode.Proactive;
+    const settings = loadSettings();
+    //updateSettings();  // Set the values from the settings 
     if (displayMode.toLowerCase() === "inline" && triggerMode.toLowerCase() === "proactive") {
         registerInlineCompletionItemProvider(context);
     }
@@ -167,7 +166,7 @@ async function triggerSuggestion(document, position) {
                 break;
             case 'chatbot':
                 console.log("Showing chatbot suggestion");
-                showSuggestionInChatbot(suggestion, contextText);
+                //showSuggestionInChatbot(suggestion,contextText);
                 break;
             case 'hybrid':
                 if (suggestion.length <= inlineMaxLength) {
@@ -383,7 +382,7 @@ function getTooltipCompletionProvider() {
 /* ------------------ */
 function onConfigurationChanged(event) {
     console.log(`Configuration changed: ${event.affectsConfiguration('llmCodeCompletion.triggerMode')}`);
-    updateSettings();
+    loadSettings();
     if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
         console.log(`Trigger mode changed to ${triggerMode}`);
         if (triggerMode === 'proactive') {
@@ -403,11 +402,11 @@ function onConfigurationChanged(event) {
 /* Updates the global parameters based on the settings specified by the user (or by default) */
 function updateSettings() {
     const config = vscode.workspace.getConfiguration(settingsName);
-    //triggerMode = config.get<TriggerMode>('triggerMode', triggerMode);
-    //displayMode = config.get<DisplayMode>('displayMode', displayMode);
-    //suggestionGranularity = config.get<number>('suggestionGranularity', suggestionGranularity);
-    //includeDocumentation = config.get<boolean>('includeDocumentation', includeDocumentation);
-    //inlineMaxLength = config.get<number>('inlineMaxLength', inlineMaxLength);
+    triggerMode = config.get('triggerMode', triggerMode);
+    displayMode = config.get('displayMode', displayMode);
+    suggestionGranularity = config.get('suggestionGranularity', suggestionGranularity);
+    includeDocumentation = config.get('includeDocumentation', includeDocumentation);
+    inlineMaxLength = config.get('inlineMaxLength', inlineMaxLength);
 }
 /* --------- */
 function deactivate() {
@@ -417,6 +416,34 @@ function deactivate() {
     if (typingTimeout) {
         clearTimeout(typingTimeout);
     }
+}
+function loadSettings() {
+    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+    var dm = config.get('displayMode', 'inline'); // Default is 'inline'
+    var tm = config.get('triggerMode', 'proactive'); // Default is 'proactive'
+    switch (dm) {
+        case ("inline"):
+            displayMode = settings_1.DisplayMode.Inline;
+            break;
+        case ("tooltip"):
+            displayMode = settings_1.DisplayMode.Tooltip;
+            break;
+        case ("sideWindow"):
+            displayMode = settings_1.DisplayMode.SideWindow;
+            break;
+        case ("hybrid"):
+            displayMode = settings_1.DisplayMode.Hybrid;
+    }
+    switch (tm) {
+        case ("proactive"):
+            triggerMode = settings_1.TriggerMode.Proactive;
+            break;
+        case ("onDemand"):
+            triggerMode = settings_1.TriggerMode.OnDemand;
+    }
+    suggestionGranularity = config.get('suggestionGranularity', 5); // Default is 5
+    includeDocumentation = config.get('includeSources', false); // Default is false
+    return { displayMode, triggerMode, suggestionGranularity, includeDocumentation };
 }
 async function requestGPT4(prompt) {
     try {
