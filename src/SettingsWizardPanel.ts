@@ -75,21 +75,21 @@ export class SettingsWizardPanel {
           }
 
           function saveSettings() {
-      const settings = {
-        displayMode: document.getElementById('displayMode').value,
-        triggerMode: document.getElementById('triggerMode').value,
-        suggestionGranularity: document.getElementById('suggestionGranularity').value,
-        includeDocumentation: document.getElementById('includeDocumentation').checked,
-        shortcuts: {
-          toggleSuggestion: document.getElementById('shortcutToggle').value,
-          triggerSuggestion: document.getElementById('shortcutTrigger').value,
-          openSettings: document.getElementById('shortcutSettings').value,
-          openChatbot: document.getElementById('shortcutChatbot').value
-        }
-      };
-      console.log('Settings saved:', settings);
-      alert('Settings have been saved!');
-    }
+  const settings = {
+    displayMode: document.getElementById('displayMode').value,
+    triggerMode: document.getElementById('triggerMode').value,
+    suggestionGranularity: document.getElementById('suggestionGranularity').value,
+    includeDocumentation: document.getElementById('includeDocumentation').checked,
+    shortcuts: {
+      toggleSuggestion: document.getElementById('shortcutToggle').value,
+      triggerSuggestion: document.getElementById('shortcutTrigger').value,
+      openSettings: document.getElementById('shortcutSettings').value,
+      openChatbot: document.getElementById('shortcutChatbot').value,
+    },
+  };
+
+  vscode.postMessage({ type: 'save', ...settings });
+}
 
         
 
@@ -252,11 +252,19 @@ button:hover {
     if (message.type === 'save') {
       const config = vscode.workspace.getConfiguration('llmCodeCompletion');
   
-      // Update each configuration setting
+      // Update general settings
       await config.update('displayMode', message.displayMode, vscode.ConfigurationTarget.Global);
       await config.update('triggerMode', message.triggerMode, vscode.ConfigurationTarget.Global);
       await config.update('suggestionGranularity', message.suggestionGranularity, vscode.ConfigurationTarget.Global);
       await config.update('includeDocumentation', message.includeDocumentation, vscode.ConfigurationTarget.Global);
+  
+      // Update shortcut settings
+      // Update individual shortcut settings
+      await config.update('shortcuts.toggleSuggestion', message.shortcuts.toggleSuggestion, vscode.ConfigurationTarget.Global);
+      await config.update('shortcuts.triggerSuggestion', message.shortcuts.triggerSuggestion, vscode.ConfigurationTarget.Global);
+      await config.update('shortcuts.openSettings', message.shortcuts.openSettings, vscode.ConfigurationTarget.Global);
+      await config.update('shortcuts.openChatbot', message.shortcuts.openChatbot, vscode.ConfigurationTarget.Global);
+
   
       vscode.window.showInformationMessage('Settings saved successfully!');
     }

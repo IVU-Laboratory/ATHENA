@@ -56,13 +56,45 @@ var inlineMaxLength = 50; // only works when displayMode="hybrid". Defines the m
 // var triggerShortcut = "ctrl+alt+s"; //this is already defined in the package.json file 
 var toggleCompletionButton;
 var tooltipProactiveProvider; // The completion provider for the tooltip suggestions 
+var shortcuts = {};
 function activate(context) {
     console.log("Starting LLM Code completion extension");
-    const openSettingsCommand = vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', () => {
-        SettingsWizardPanel_1.SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
-    });
-    context.subscriptions.push(openSettingsCommand);
+    // Check if it's the first run
+    const firstRunKey = 'llmCodeCompletion.firstRun';
+    const globalState = context.globalState;
+    const isFirstRun = !globalState.get(firstRunKey, false);
+    if (isFirstRun) {
+        console.log("First time using the extension. Opening Settings Wizard.");
+        const conf = vscode.workspace.getConfiguration('llmCodeCompletion');
+        const defaultShortcuts = {
+            toggleSuggestion: 'Ctrl+Alt+S',
+            triggerSuggestion: 'Ctrl+Alt+R',
+            openSettings: 'Ctrl+Alt+T',
+            openChatbot: 'Ctrl+Alt+P',
+        };
+        Object.keys(defaultShortcuts).forEach((key) => {
+            const currentValue = conf.get(`shortcuts.${key}`);
+            console.log(`Current value for ${key}: ${currentValue}`);
+            // Only set the default shortcut if it hasn't been set already
+            if (!currentValue) {
+                conf.update(`shortcuts.${key}`, defaultShortcuts[key], vscode.ConfigurationTarget.Global);
+                console.log(`Setting default shortcut for ${key}: ${defaultShortcuts[key]}`);
+            }
+            else {
+                console.log(`Shortcut for ${key} already exists: ${currentValue}`);
+            }
+        });
+        globalState.update(firstRunKey, true);
+        SettingsWizardPanel_1.SettingsWizardPanel.createOrShow(context.extensionUri);
+        // Mark the first run as complete
+        globalState.update(firstRunKey, true);
+    }
+    //const openSettingsCommand = vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', () => {
+    // SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
+    //});
+    //context.subscriptions.push(openSettingsCommand);
     const settings = loadSettings();
+    registerDynamicShortcuts(context, settings.shortcuts);
     //updateSettings();  // Set the values from the settings 
     if (displayMode.toLowerCase() === "inline" && triggerMode.toLowerCase() === "proactive") {
         registerInlineCompletionItemProvider(context);
@@ -76,24 +108,34 @@ function activate(context) {
             }
         }
     }
-    /* Register commands */
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.triggerSuggestion', async () => {
-        const editor = vscode.window.activeTextEditor;
-        if (editor) {
-            const document = editor.document;
-            const position = editor.selection.active;
-            await triggerSuggestion(document, position);
-        }
-    }));
+    /* Register commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand('llmCodeCompletion.triggerSuggestion', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (editor) {
+        const document = editor.document;
+        const position = editor.selection.active;
+        await triggerSuggestion(document, position);
+      }
+    })
+  );
+
+  */
     // Register the command to open the chatbot panel
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.showChatbot', () => {
+    /*
+      context.subscriptions.push(
+          vscode.commands.registerCommand('llmCodeCompletion.showChatbot', () => {
         const editor = vscode.window.activeTextEditor;
-        var documentText = "";
+        
+        var documentText= "";
         if (editor) {
-            documentText = editor.document.getText();
+          documentText = editor.document.getText();
         }
-        ChatbotPanel_1.ChatbotPanel.createOrShow(context.extensionUri, documentText);
-    }));
+        
+              ChatbotPanel.createOrShow(context.extensionUri, documentText);
+          })
+    );
+  */
     //addButtonsToEditor(context); NON FUNZIONA
     vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);
     console.log("Display mode: " + displayMode);
@@ -139,6 +181,23 @@ function triggerInlineSuggestions() {
     if (editor) {
         vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
     }
+}
+function registerDynamicShortcuts(context, shortcuts) {
+    const { toggleSuggestion, triggerSuggestion, openSettings, openChatbot } = shortcuts;
+    // Register each command with its respective shortcut
+    const keybindings = [
+        { command: 'llmCodeCompletion.toggleSuggestion', keybinding: toggleSuggestion },
+        { command: 'llmCodeCompletion.triggerSuggestion', keybinding: triggerSuggestion },
+        { command: 'llmCodeCompletion.openSettingsWizard', keybinding: openSettings },
+        { command: 'llmCodeCompletion.showChatbot', keybinding: openChatbot },
+    ];
+    keybindings.forEach(({ command, keybinding }) => {
+        context.subscriptions.push(vscode.commands.registerCommand(command, () => {
+            vscode.commands.executeCommand(command);
+        }));
+        vscode.commands.executeCommand('setContext', command, keybinding);
+        console.log(`Registered shortcut: ${keybinding} for ${command}`);
+    });
 }
 async function triggerSuggestion(document, position) {
     // Generate suggestions only if there is sufficient context 
@@ -382,19 +441,21 @@ function getTooltipCompletionProvider() {
 /* ------------------ */
 function onConfigurationChanged(event) {
     console.log(`Configuration changed: ${event.affectsConfiguration('llmCodeCompletion.triggerMode')}`);
-    loadSettings();
-    if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
-        console.log(`Trigger mode changed to ${triggerMode}`);
-        if (triggerMode === 'proactive') {
-            vscode.workspace.onDidChangeTextDocument(onTextChanged);
-            registerCompletionProvider();
-        }
-        else {
-            unregisterCompletionProvider();
-            // Set the typing timeout to undefined to prevent proactive behavior FIXME: doesn't work!
-            if (typingTimeout) {
-                clearTimeout(typingTimeout);
-                typingTimeout = undefined;
+    if (event.affectsConfiguration('llmCodeCompletion.triggerMode') || event.affectsConfiguration('llmCodeCompletion.displayMode') || event.affectsConfiguration('llmCodeCompletion.suggestionGranularity') || event.affectsConfiguration('llmCodeCompletion.includeDocumentation') || event.affectsConfiguration('llmCodeCompletion.inlineMaxLength')) {
+        loadSettings();
+        if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
+            console.log(`Trigger mode changed to ${triggerMode}`);
+            if (triggerMode === 'proactive') {
+                vscode.workspace.onDidChangeTextDocument(onTextChanged);
+                registerCompletionProvider();
+            }
+            else {
+                unregisterCompletionProvider();
+                // Set the typing timeout to undefined to prevent proactive behavior FIXME: doesn't work!
+                if (typingTimeout) {
+                    clearTimeout(typingTimeout);
+                    typingTimeout = undefined;
+                }
             }
         }
     }
@@ -443,7 +504,13 @@ function loadSettings() {
     }
     suggestionGranularity = config.get('suggestionGranularity', 5); // Default is 5
     includeDocumentation = config.get('includeSources', false); // Default is false
-    return { displayMode, triggerMode, suggestionGranularity, includeDocumentation };
+    shortcuts = {
+        toggleSuggestion: config.get('shortcuts.toggleSuggestion', 'ctrl+alt+s'),
+        triggerSuggestion: config.get('shortcuts.triggerSuggestion', 'ctrl+alt+r'),
+        openSettings: config.get('shortcuts.openSettings', 'ctrl+alt+t'),
+        openChatbot: config.get('shortcuts.openChatbot', 'ctrl+alt+p'),
+    };
+    return { displayMode, triggerMode, suggestionGranularity, includeDocumentation, shortcuts };
 }
 async function requestGPT4(prompt) {
     try {
