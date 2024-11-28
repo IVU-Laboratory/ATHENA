@@ -1,8 +1,5 @@
 import * as vscode from 'vscode';
-import axios from 'axios';
-
-const apiKey = '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'; 
-
+import {requestGPT4} from './GPT';
 
 
 export class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
@@ -36,37 +33,8 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
     }
 
     private shouldProvideSuggestion(text: string): boolean {
-        // Define your conditions here. For example:
-       // return text.endsWith(';') || text.endsWith('}');
-       return true;
-      }
-  }
-
-async function requestGPT4(prompt: string): Promise<string> {
-    try {
-      const response = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
-        {
-          model: 'gpt-4-turbo',
-          messages: [
-            { role: 'system', content: 'You are a code completion tool. You must only produce code that completes the input code. ' },
-            { role: 'user', content: prompt },
-          ],
-          max_tokens: 100,
-          temperature: 0.7,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-        }
-      );
-  
-      console.log(response.data.choices[0].message.content);
-      return response.data.choices[0].message.content;
-    } catch (error) {
-      console.error('Error communicating with GPT-4:', error);
-      return '';
+      // Define your conditions here. For example:
+      // return text.endsWith(';') || text.endsWith('}');
+      return true;
     }
-  }
+}
