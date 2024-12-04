@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import {requestGPT4} from './GPT';
+import {getLLMSuggestion} from './GPT';
 
 
 export class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
@@ -17,7 +17,7 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
       );
   
       // Call the requestGPT4 function to get suggestions (ensure this function is available here)
-      const suggestionText = await requestGPT4(textBeforeCursor);
+      const suggestionText = await getLLMSuggestion(textBeforeCursor);
       //print the suggestion
       console.log(suggestionText);
       if (!suggestionText) {
