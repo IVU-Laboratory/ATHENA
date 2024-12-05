@@ -58,7 +58,7 @@ export class InlineProviderManager {
         position: vscode.Position
     ): Promise<void> {
         if (editor) {
-            let temporaryCompletionProvider = vscode.languages.registerInlineCompletionItemProvider(
+            let temporaryProvider = vscode.languages.registerInlineCompletionItemProvider(
                 { pattern: '**' }, // tutti i file
                 {
                     provideInlineCompletionItems(): vscode.InlineCompletionItem[] {
@@ -68,10 +68,22 @@ export class InlineProviderManager {
                     } 
                 }
             );
-            vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
-            setTimeout(() => {
-                temporaryCompletionProvider.dispose();
-            }, 500);
+            await vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
+            
+            // Clean up temporary provider on changes
+            const disposables: vscode.Disposable[] = [];
+            disposables.push(
+                vscode.workspace.onDidChangeTextDocument(event => {
+                    if (event.document === editor.document) {
+                        temporaryProvider.dispose();
+                        disposables.forEach(disposable => disposable.dispose());
+                    }
+                }),
+                vscode.window.onDidChangeActiveTextEditor(() => {
+                    temporaryProvider.dispose();
+                    disposables.forEach(disposable => disposable.dispose());
+                })
+            );
         }
     }
 }

@@ -1,70 +1,95 @@
-import axios from 'axios';
+import axios from "axios";
 
-let apiKey : String | undefined;  //TODO this should be probably set within the settings from the user
+export class GPTSessionManager {
 
-async function requestGPT4(prompt: string): Promise<string> {
-  if (apiKey === undefined) {
-    apiKey = process.env.OPENAI_API_KEY;
-    if (apiKey === undefined) {
-      console.log("API key is missing. Set it in the .env file.")  
-      return "API key missing";
-    }
+  private static sessionContext: string = ""; // Store session context
+  private static conversationHistory: { role: string; content: string }[] = [];
+  private static apiKey: string = ""; // OpenAI API key
+
+  public static initialize(apiKey: string) {  // initialPrompt: string) {
+      this.apiKey = apiKey;
+      const initialPrompt = `You are a code completion tool. You must only produce code that completes the input code. 
+        Your answers must not include the code given as context, as they will be used to directly complete the user's code. 
+        Include a newline character at the end of the suggested code when needed.
+        Example: input="for i in range", output="(1:10):\n", and not "for i in range(1:10):\n".`;
+      // Add the initial system prompt
+      this.conversationHistory.push({ role: "system", content: initialPrompt });
+      this.sessionContext = initialPrompt;
   }
+
+  
+  public static async getLLMSuggestion(context: string, includeDocumentation: boolean = false): Promise<string> {
+    if (this.apiKey == "") {
+      return "Set an OpenAI API key within the settings!";
+    }    
+    let prompt = includeDocumentation
+        ? `Provide a suggestion with documentation based on the context:\n ${context}`  // TODO probabilmente dovremmo cambiare il prompt al cambio del parametro
+        : `Context:\n ${context}`;
+    
+    // Call the LLM API instead of the placeholder suggestion
+    let suggestion = await this.getCompletion(prompt);
+    console.log(suggestion);
+    return suggestion;
+  }
+
+
+  // Get completions with minimal input
+  private static async getCompletion(prompt: string): Promise<string> {
+    const axios = require("axios");
+    // Add the minimal user prompt to the history
+    this.addToHistory("user", prompt);
     try {
+      // Send the request to the OpenAI API
       const response = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
+        "https://api.openai.com/v1/chat/completions",
         {
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: 'You are a code completion tool. You must only produce code that completes the input code.' },
-            { role: 'user', content: prompt },
-          ],
-          max_tokens: 100,
-          temperature: 0.7,
+            model: "gpt-4o-mini",
+            messages: this.conversationHistory,
+            max_completion_tokens: 100,
+            temperature: 0.7,
+            n: 1  // number of choices
         },
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
+            headers: {
+                "Authorization": `Bearer ${this.apiKey}`,
+                "Content-Type": "application/json",
+            },
         }
       );
-      let code_suggestion = response.data.choices[0].message.content;
-      code_suggestion = stripCodeBlockFormatting(code_suggestion);
-      console.log("Obtained code suggestion: " + code_suggestion);
-      return code_suggestion;
+
+      // Extract and return the assistant's reply
+      let completion = response.data.choices[0].message.content;
+
+      // Add the assistant's reply to the history
+      this.addToHistory("assistant", completion);
+
+      completion = this.stripCodeBlockFormatting(completion);
+      return completion;
     } catch (error) {
-      console.error('Error communicating with GPT-4:', error);
+      console.error('Error communicating with GPT model:', error);
       return '';
     }
   }
 
-
-function stripCodeBlockFormatting(code: string): string {
-  // Use a regular expression to match the backticks and optional language
-  const codeBlockRegex = /^```(\w+)?\n([\s\S]*?)```$/;
-
-  // Apply the regex and extract the inner code
-  const match = code.match(codeBlockRegex);
-  if (match) {
-    return match[2].trim(); // Return the inner code, trimmed of leading/trailing whitespace
+  // Add a message to the conversation history
+  private static addToHistory(role: "user" | "assistant", content: string): void {
+    this.conversationHistory.push({ role, content });
+  }
+  
+  private static stripCodeBlockFormatting(code: string): string {
+    // Use a regular expression to match the backticks and optional language
+    const codeBlockRegex = /^```(\w+)?\n([\s\S]*?)```$/;
+    // Apply the regex and extract the inner code
+    const match = code.match(codeBlockRegex);
+    if (match) {
+      let clean_code = match[2];
+      return clean_code; // Return the inner code
+    }
+    // If the input doesn't match the format, return it as is
+    return code.trim();
   }
 
-  // If the input doesn't match the format, return it as is
-  return code.trim();
 }
-
-
-export async function getLLMSuggestion(context: string, includeDocumentation: boolean = false): Promise<string> {
-  let prompt = "";
-  prompt = includeDocumentation
-      ? `Provide a suggestion with documentation based on the context: ${context}`
-      : `Provide a suggestion based on the context: ${context}`;
-  
-
-  // Call the LLM API instead of the placeholder suggestion
-  let suggestion = "placeholder suggestion"; // await requestGPT4(prompt);
-  return suggestion;
 
   //let suggestion = new Promise<string>((resolve) => {
   //    setTimeout(() => {
@@ -76,8 +101,6 @@ export async function getLLMSuggestion(context: string, includeDocumentation: bo
   // Maybe the documentation might be asked within the prompt, so that getLLMSuggestion would take "includeDocumentation" as an input parameter and change the LLM prompt accordingly
   //let enrichedSuggestion = suggestion;
   //if (includeDocumentation) {
-  //  enrichedSuggestion = enrichSuggestionWithDocumentation(await suggestion);
+  //  enrichedSuggestion = await suggestion + `\n\n// Documentation references included.`;
   //}
   //return enrichedSuggestion;
-}
-/**/
