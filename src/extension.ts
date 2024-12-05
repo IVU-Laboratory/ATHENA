@@ -32,12 +32,12 @@ var suggestionGranularity: number;  // 1-10, indicates the granularity of the su
 var includeDocumentation: boolean;  // Can be true or false to include or not the documentation in the suggestion
 var inlineMaxLength = 50;  // only works when displayMode="hybrid". Defines the maximum length of suggestions to be shown inline 
 
-// var triggerShortcut = "ctrl+alt+s"; //this is already defined in the package.json file 
 var toggleCompletionButton: vscode.TextEditorDecorationType;
 var shortcuts = {};
 
 var ExtensionContext: vscode.ExtensionContext;
 
+var Sidepanel: vscode.WebviewPanel | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   console.log ("Starting LLM Code completion extension");
@@ -92,7 +92,9 @@ export function activate(context: vscode.ExtensionContext) {
   const settings = loadSettings();
   registerDynamicShortcuts(context, settings.shortcuts);*/
   // Initialize the session with GPT-4o
-  GPTSessionManager.initialize(process.env.OPENAI_API_KEY ?? "")
+
+  let openAIapikey = getOpenAIAPIkey();
+  GPTSessionManager.initialize(openAIapikey)
   TooltipCompletionManager = new TooltipProviderManager(); 
   InlineCompletionManager = new InlineProviderManager(); 
   if (triggerMode === TriggerMode.Proactive) {
@@ -296,14 +298,16 @@ function handleButtonClicks() {
 
 // Lateral window suggestion 
 function showSuggestionInSideWindow(suggestion: string) {
-  // TODO: do not create multiple panels => define one panel globally and check if it exists before creating it?
-  const panel = vscode.window.createWebviewPanel(
-    'codeSuggestion',
-    'Code Suggestion',
-    vscode.ViewColumn.Beside,
-    {}
-  );
-  panel.webview.html = `<html><body><pre style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
+  // Check if a panel exists before creating it
+  if (Sidepanel == null) {
+    Sidepanel = vscode.window.createWebviewPanel(
+      'codeSuggestion',
+      'Code Suggestion',
+      vscode.ViewColumn.Beside,
+      {}
+    );
+  }
+  Sidepanel.webview.html = `<html><body><pre style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
 }
 
 
@@ -316,7 +320,7 @@ export function showSuggestionInChatbot(suggestion: string, contextText: string)
 }
 
 
-/* ------------------ */
+/* ----------- Configuration related functions ------------ */
 
 function onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
   if(event.affectsConfiguration('llmCodeCompletion.triggerMode') || event.affectsConfiguration('llmCodeCompletion.displayMode') || event.affectsConfiguration('llmCodeCompletion.suggestionGranularity') || event.affectsConfiguration('llmCodeCompletion.includeDocumentation') || event.affectsConfiguration('llmCodeCompletion.inlineMaxLength')){
@@ -329,6 +333,26 @@ function onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
       disableProactiveBehavior();
     }
   }
+  if (event.affectsConfiguration('llmCodeCompletion.openaiAPIKey')) {  
+    // set the openAI API key if it gets updated
+    const new_api_key = getOpenAIAPIkey();
+    if (new_api_key != "") {
+      GPTSessionManager.initialize(new_api_key);
+    }
+  }
+}
+
+
+function getOpenAIAPIkey(): string {
+  let key = "";
+  // try to fetch the API key from the configurations 
+  const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+  key = config.get<string>("openaiAPIKey", "");
+  if (key == "") { 
+    // try to fetch it from the .env file
+    key = process.env.OPENAI_API_KEY ?? "";
+  }
+  return key;
 }
 
 
@@ -363,8 +387,6 @@ async function disableProactiveBehavior() {
   }
 }
 
-
-/* --------- */
 
 function loadSettings() {
   // Automatically update global parameters from settings
