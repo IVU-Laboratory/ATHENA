@@ -42,8 +42,8 @@
         "when": "editorTextFocus"
       },
       {
-        "command": "llmCodeCompletion.toggleInlineSuggestions",
-        "key": "ctrl+alt+i",
+        "command": "llmCodeCompletion.toggleAutomaticSuggestions",
+        "key": "ctrl+alt+a",
         "when": "editorTextFocus"
       },
       {

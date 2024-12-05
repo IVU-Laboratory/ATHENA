@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import { ChatbotPanel } from ".\\ChatbotPanel"; // Import the ChatbotPanel
 import { SettingsWizardPanel } from './SettingsWizardPanel'; 
 import { TriggerMode, DisplayMode } from "./utilities/settings";
-import { getLLMSuggestion } from './GPT';
-import {InlineCompletionProvider} from "./InlineCompletionProvider";
-import { TooltipProviderManager } from './TooltipCompletionProvider';
+import { GPTSessionManager } from './GPT';
+import { TooltipProviderManager } from './TooltipProviderManager';
+import { InlineProviderManager } from './InlineProviderManager';
 import {hasSufficientContext, extractContext} from './utilities/context';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
@@ -14,14 +14,13 @@ let chatbotProvider: ChatbotPanel;
 
 let proactiveCompletionListener: vscode.Disposable | undefined;  // The event listener for EVERY proactive suggestion method
 
-let inlineCompletionDisposable: vscode.Disposable | undefined;  // The completion provider for the inline suggestions
-let tooltipManager: TooltipProviderManager ;  // The completion provider for the tooltip suggestions 
+let InlineCompletionManager: InlineProviderManager;  // The completion provider for the inline suggestions
+let TooltipCompletionManager: TooltipProviderManager ;  // The completion provider for the tooltip suggestions 
 
 const extension_id = 'uniba.llm-code-completion';
 const settingsName = "llmCodeCompletion";
 
 let toggle_suggestions = true;
-let providerInstance: InlineCompletionProvider | undefined;
 
 let currentDecorationType: vscode.TextEditorDecorationType | null = null;
 let currentSuggestion: string | null = null;
@@ -37,16 +36,17 @@ var inlineMaxLength = 50;  // only works when displayMode="hybrid". Defines the 
 var toggleCompletionButton: vscode.TextEditorDecorationType;
 var shortcuts = {};
 
+var ExtensionContext: vscode.ExtensionContext;
+
 
 export function activate(context: vscode.ExtensionContext) {
   console.log ("Starting LLM Code completion extension");
+  ExtensionContext = context;
   loadSettings();  // Load settings into global variables
   let envPath = path.join(context.extensionPath, '.env');
   let env_loaded = dotenv.config({ path: envPath });  // Load .env file
   if (env_loaded.error) {
     console.log (`"Error loading the environment variables in .env file (${envPath})! OpenAI key must be set there!`);
-  } else {
-    console.log(`API Key: ${process.env.OPENAI_API_KEY}`);
   }
 /*
    // Check if it's the first run
@@ -91,13 +91,10 @@ export function activate(context: vscode.ExtensionContext) {
   //context.subscriptions.push(openSettingsCommand);
   const settings = loadSettings();
   registerDynamicShortcuts(context, settings.shortcuts);*/
-
-  tooltipManager = new TooltipProviderManager();
-
-  if (displayMode === DisplayMode.Inline && triggerMode === TriggerMode.Proactive) {
-    registerInlineCompletionItemProvider(context);
-  }
-  
+  // Initialize the session with GPT-4o
+  GPTSessionManager.initialize(process.env.OPENAI_API_KEY ?? "")
+  TooltipCompletionManager = new TooltipProviderManager(); 
+  InlineCompletionManager = new InlineProviderManager(); 
   if (triggerMode === TriggerMode.Proactive) {
     enableProactiveBehavior();
   }
@@ -128,6 +125,19 @@ export function activate(context: vscode.ExtensionContext) {
 		})
   );  
 
+   // Register command to toggle proactive suggestions
+   context.subscriptions.push(
+      vscode.commands.registerCommand('llmCodeCompletion.toggleAutomaticSuggestions', () => {
+        if (triggerMode == TriggerMode.Proactive) {
+          disableProactiveBehavior();
+          vscode.window.showInformationMessage('Automatic suggestions disabled.');
+        } else {
+          enableProactiveBehavior();
+          vscode.window.showInformationMessage('Automatic suggestions enabled.');
+        }
+    })
+   );
+
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);  // Update settings automatically on change.
   //addButtonsToEditor(context); NON FUNZIONA
 }
@@ -151,44 +161,8 @@ function onTextChanged(event: vscode.TextDocumentChangeEvent) {
 }
 
 
-function registerInlineCompletionItemProvider(context: vscode.ExtensionContext) {
-  console.log("Registering inline completion provider");
-  // Register command to toggle inline suggestions
-  const toggleCommand = vscode.commands.registerCommand('llmCodeCompletion.toggleInlineSuggestions', () => {
-    if (inlineCompletionDisposable) {
-      unregisterInlineCompletionProvider();
-      vscode.window.showInformationMessage('Inline suggestions disabled.');
-    } else {
-      providerInstance = new InlineCompletionProvider();
-      inlineCompletionDisposable = vscode.languages.registerInlineCompletionItemProvider(
-        { pattern: '**' }, // tutti i file
-        providerInstance
-      );
-      context.subscriptions.push(inlineCompletionDisposable);
-      vscode.window.showInformationMessage('Inline suggestions enabled.');
-    }
-  });
-
-  context.subscriptions.push(toggleCommand);
-  triggerInlineSuggestions();
-}
-
-function unregisterInlineCompletionProvider() {
-  console.log("Unregistering tooltip completion provider");
-  inlineCompletionDisposable?.dispose();  // Dispose of the provider
-  inlineCompletionDisposable = undefined; // Clear the reference
-}
-
-
-// Helper function to trigger inline suggestions in the active editor
-function triggerInlineSuggestions() {
-  const editor = vscode.window.activeTextEditor;
-  if (editor) {
-    vscode.commands.executeCommand('editor.action.inlineSuggest.trigger');
-  }
-}
-
 function registerDynamicShortcuts(context: vscode.ExtensionContext, shortcuts: any) {
+  //TODO
   const { toggleSuggestion, triggerSuggestion, openSettings, openChatbot } = shortcuts;
 
   // Register each command with its respective shortcut
@@ -221,20 +195,22 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
   
   const contextText = extractContext(document, position);
 
-  const suggestion = await getLLMSuggestion(contextText, includeDocumentation);
+  const suggestion = await GPTSessionManager.getLLMSuggestion(contextText, includeDocumentation);
 
   const editor = vscode.window.activeTextEditor;
   if (editor) {
     switch (displayMode) {
       case 'tooltip':  // this should only be called when the user asks for a suggestion (not proactively - for that, there is the completionProvider)
         if (triggerMode != TriggerMode.Proactive) {
-          //console.log("Showing tooltip suggestion");
-          tooltipManager.provideOnDemandSuggestion(editor, suggestion, position);
+          console.log("Showing tooltip suggestion on demand");
+          TooltipCompletionManager.provideOnDemandSuggestion(editor, suggestion, position);
         }  
         break;
       case 'inline':
-        //console.log("Showing inline suggestion");
-        //showInlineSuggestion(editor, suggestion, position);
+        if (triggerMode != TriggerMode.Proactive) {
+          console.log("Showing inline suggestion on demand");
+          InlineCompletionManager.provideOnDemandSuggestion(editor, suggestion, position);
+        }
         break;
       case 'sideWindow':
         console.log("Showing sidewindow suggestion");
@@ -318,13 +294,6 @@ function handleButtonClicks() {
 }
 
 
-
-async function enrichSuggestionWithDocumentation(suggestion: string): Promise<string> {
-  //TODO get documentation references for functions in suggestion
-  return suggestion + `\n\n// Documentation references included.`;
-}
-
-
 // Lateral window suggestion 
 function showSuggestionInSideWindow(suggestion: string) {
   // TODO: do not create multiple panels => define one panel globally and check if it exists before creating it?
@@ -366,8 +335,15 @@ function onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
 function enableProactiveBehavior() {
   proactiveCompletionListener = vscode.workspace.onDidChangeTextDocument(onTextChanged);
   if (displayMode === DisplayMode.Tooltip) {
-    // Register the completion provider with LLM suggestion for PROACTIVE tooltip display
-    tooltipManager.enableProactiveBehavior();
+    // Register the completion provider for proactive tooltip display
+    ExtensionContext.subscriptions.push(TooltipCompletionManager.enableProactiveBehavior());
+  } else if (displayMode === DisplayMode.Inline) {
+    // Register the completion provider for proactive inline display
+    ExtensionContext.subscriptions.push(InlineCompletionManager.enableProactiveBehavior());
+  }
+  // Ensure the triggerMode is updated
+  if (triggerMode == TriggerMode.OnDemand) {
+    // Change the config to TriggerMode.Proactive
   }
 }
 
@@ -375,22 +351,16 @@ function enableProactiveBehavior() {
 function disableProactiveBehavior() {
   proactiveCompletionListener?.dispose();
   clearTimeout(typingTimeout); // Set the typing timeout to undefined to prevent proactive behavior
-  tooltipManager.disableProactiveBehavior();  // unregister tooltip completion provider if exists
-  unregisterInlineCompletionProvider();
+  TooltipCompletionManager.disableProactiveBehavior();  // unregister tooltip completion provider if exists
+  InlineCompletionManager.disableProactiveBehavior();  // unregister inline completion provider if exists
+  // Ensure the triggerMode is updated
+  if (triggerMode == TriggerMode.Proactive) {
+    // Change the config to TriggerMode.OnDemand
+  }
 }
 
 
 /* --------- */
-
-export function deactivate() {  // this function is probably deprecated 
-  if (inlineCompletionDisposable) {
-    inlineCompletionDisposable.dispose();
-  }
-  if (typingTimeout) {
-    clearTimeout(typingTimeout);
-  }
-}
-
 
 function loadSettings() {
   // Automatically update global parameters from settings
@@ -400,10 +370,11 @@ function loadSettings() {
   suggestionGranularity = config.get<number>('suggestionGranularity', 5);  // Default is 5
   includeDocumentation = config.get<boolean>('includeDocumentation', false);  // Default is false
   // inlineMaxLength = config.get<number>('inlineMaxLength', inlineMaxLength);
-  
+
   shortcuts = {
     toggleSuggestion: config.get('shortcuts.toggleSuggestion', 'ctrl+alt+s'),
     triggerSuggestion: config.get('shortcuts.triggerSuggestion', 'ctrl+alt+r'),
+
     openSettings: config.get('shortcuts.openSettings', 'ctrl+alt+t'),
     openChatbot: config.get('shortcuts.openChatbot', 'ctrl+alt+p'),
   };

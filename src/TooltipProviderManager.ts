@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import {hasSufficientContext, extractContext} from './utilities/context';
-import {getLLMSuggestion} from './GPT'
+import {GPTSessionManager} from './GPT';
 
 export class TooltipProviderManager {
     private proactiveProvider: vscode.Disposable | null = null;
@@ -9,7 +9,6 @@ export class TooltipProviderManager {
 
     public enableProactiveBehavior(): vscode.Disposable {
         const debounceTimers = new Map<string, NodeJS.Timeout>();
-        this.cachedSuggestions;
     
         const registerProvider = () => {
             if (this.proactiveProvider) {
@@ -71,10 +70,7 @@ export class TooltipProviderManager {
                 changeListener.dispose();
                 debounceTimers.forEach(timer => clearTimeout(timer));
                 debounceTimers.clear();
-                this.cachedSuggestions.clear();
-                if (this.proactiveProvider) {
-                    this.proactiveProvider.dispose();
-                }
+                this.disableProactiveBehavior();
             }
         };
     }
@@ -86,6 +82,8 @@ export class TooltipProviderManager {
             this.proactiveProvider.dispose();
             this.proactiveProvider = null;
         }
+        // Clear cache
+        this.cachedSuggestions.clear();
         // Clear timer
         if (this.typingTimeout) {
           clearTimeout(this.typingTimeout);
@@ -141,7 +139,7 @@ export class TooltipProviderManager {
 
             // Extract context and get LLM suggestions
             const typingContext = extractContext(document, position);
-            const llmSuggestion = await getLLMSuggestion(typingContext);
+            const llmSuggestion = await GPTSessionManager.getLLMSuggestion(typingContext);
 
             const llmCompletionItem = new vscode.CompletionItem(llmSuggestion, vscode.CompletionItemKind.Snippet);
             llmCompletionItem.insertText = llmSuggestion;
