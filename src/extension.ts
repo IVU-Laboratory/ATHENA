@@ -394,41 +394,13 @@ export function deactivate() {  // this function is probably deprecated
 
 function loadSettings() {
   // Automatically update global parameters from settings
-  /* 
-  triggerMode = config.get<TriggerMode>('triggerMode', 'onDemand');
-  displayMode = config.get<DisplayMode>('displayMode', 'inline');
-  suggestionGranularity = config.get<number>('suggestionGranularity', suggestionGranularity);
-  includeDocumentation = config.get<boolean>('includeDocumentation', includeDocumentation);
-  // inlineMaxLength = config.get<number>('inlineMaxLength', inlineMaxLength);*/
-
   const config = vscode.workspace.getConfiguration('llmCodeCompletion');
-
-  var dm = config.get('displayMode', 'inline'); // Default is 'inline'
-  var tm = config.get('triggerMode', 'proactive'); // Default is 'proactive'
-  switch(dm){
-    case ("inline"):
-      displayMode = DisplayMode.Inline;
-      break;
-    case ("tooltip"):
-      displayMode = DisplayMode.Tooltip;
-      break;  
-    case ("sideWindow"):
-      displayMode = DisplayMode.SideWindow;
-      break;
-    case ("hybrid"):
-      displayMode = DisplayMode.Hybrid;
-  }
-  switch(tm){
-    case ("proactive"):
-      triggerMode = TriggerMode.Proactive;
-      break;
-    case ("onDemand"):
-      triggerMode = TriggerMode.OnDemand;
-  }
+  triggerMode = config.get<TriggerMode>('triggerMode', TriggerMode.OnDemand);
+  displayMode = config.get<DisplayMode>('displayMode', DisplayMode.Inline);
+  suggestionGranularity = config.get<number>('suggestionGranularity', 5);  // Default is 5
+  includeDocumentation = config.get<boolean>('includeDocumentation', false);  // Default is false
+  // inlineMaxLength = config.get<number>('inlineMaxLength', inlineMaxLength);
   
-  suggestionGranularity = config.get('suggestionGranularity', 5); // Default is 5
-  includeDocumentation = config.get('includeSources', false); // Default is false
-
   shortcuts = {
     toggleSuggestion: config.get('shortcuts.toggleSuggestion', 'ctrl+alt+s'),
     triggerSuggestion: config.get('shortcuts.triggerSuggestion', 'ctrl+alt+r'),
