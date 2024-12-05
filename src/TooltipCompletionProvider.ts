@@ -5,31 +5,31 @@ import {getLLMSuggestion} from './GPT'
 export class TooltipProviderManager {
     private proactiveProvider: vscode.Disposable | null = null;
     private typingTimeout: NodeJS.Timeout | undefined;
-
+    private cachedSuggestions = new Map<string, vscode.CompletionItem[]>();
 
     public enableProactiveBehavior(): vscode.Disposable {
-
         const debounceTimers = new Map<string, NodeJS.Timeout>();
+        this.cachedSuggestions;
+    
         const registerProvider = () => {
             if (this.proactiveProvider) {
                 this.proactiveProvider.dispose();
             }
     
-            const _this = this;  // prevent outshadow of "this" 
+            const _this = this; // prevent outshadow of "this" 
             this.proactiveProvider = vscode.languages.registerCompletionItemProvider({ pattern: '**' }, {
                 async provideCompletionItems(document, position) {
                     const docUri = document.uri.toString();
-    
-                    if (!debounceTimers.has(docUri)) {
-                        return []; // Skip if no suggestions are ready
+
+                    // Serve cached suggestions if available
+                    if (_this.cachedSuggestions.has(docUri)) {
+                        const items = _this.cachedSuggestions.get(docUri)!;
+                        _this.cachedSuggestions.delete(docUri); // Clear cache after use
+                        return items;
                     }
-                    return new Promise<vscode.CompletionItem[]>((resolve) => {
-                        // Resolve suggestions after debouncing
-                        const timer = debounceTimers.get(docUri)!;
-                        clearTimeout(timer);
-                        debounceTimers.delete(docUri);
-                        _this.getCompletionItems(document, position).then(resolve);
-                    });
+    
+                    // If no suggestions are ready, return an empty array
+                    return [];
                 }
             });
         };
@@ -49,11 +49,14 @@ export class TooltipProviderManager {
                 if (!editor) return;
     
                 const position = editor.selection.active;
-                await this.getCompletionItems(document, position);
-                
+                const suggestions = await this.getCompletionItems(document, position);
+    
+                // Cache suggestions
+                this.cachedSuggestions.set(docUri, suggestions);
+    
                 // Trigger suggestion dropdown
                 vscode.commands.executeCommand('editor.action.triggerSuggest');
-
+    
                 debounceTimers.delete(docUri);
             }, 2000); // 2-second idle time
     
@@ -68,6 +71,7 @@ export class TooltipProviderManager {
                 changeListener.dispose();
                 debounceTimers.forEach(timer => clearTimeout(timer));
                 debounceTimers.clear();
+                this.cachedSuggestions.clear();
                 if (this.proactiveProvider) {
                     this.proactiveProvider.dispose();
                 }
@@ -75,7 +79,7 @@ export class TooltipProviderManager {
         };
     }
 
-
+    
     public disableProactiveBehavior(): void {
         // destroy proactive provider  
         if (this.proactiveProvider) {
@@ -93,7 +97,7 @@ export class TooltipProviderManager {
         suggestion: string,
         position: vscode.Position
     ): Promise<void> {
-        const temporaryProvider = this.registerTemporaryProvider(this.getCompletionItems);
+        const temporaryProvider = this.registerTemporaryProvider();
 
         // Trigger suggestion dropdown
         await vscode.commands.executeCommand('editor.action.triggerSuggest');
@@ -114,15 +118,12 @@ export class TooltipProviderManager {
         );
     }
 
-    private registerTemporaryProvider(
-        getCompletionItems: (
-          document: vscode.TextDocument, 
-          position: vscode.Position) => Promise<vscode.CompletionItem[]>
-    ): vscode.Disposable {
+    private registerTemporaryProvider(): vscode.Disposable {
         console.log ("Registering a temporary tooltip provider")
+        const _this = this;
         return vscode.languages.registerCompletionItemProvider({ pattern: '**' }, {
             provideCompletionItems(document, position, token, completionContext) {
-                return getCompletionItems(document, position);
+                return _this.getCompletionItems(document, position);
             }
         });
     }
