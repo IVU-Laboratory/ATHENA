@@ -332,7 +332,7 @@ function onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
 }
 
 
-function enableProactiveBehavior() {
+async function enableProactiveBehavior() {
   proactiveCompletionListener = vscode.workspace.onDidChangeTextDocument(onTextChanged);
   if (displayMode === DisplayMode.Tooltip) {
     // Register the completion provider for proactive tooltip display
@@ -344,11 +344,13 @@ function enableProactiveBehavior() {
   // Ensure the triggerMode is updated
   if (triggerMode == TriggerMode.OnDemand) {
     // Change the config to TriggerMode.Proactive
+    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+    await config.update('triggerMode', TriggerMode.Proactive, vscode.ConfigurationTarget.Global);
   }
 }
 
 
-function disableProactiveBehavior() {
+async function disableProactiveBehavior() {
   proactiveCompletionListener?.dispose();
   clearTimeout(typingTimeout); // Set the typing timeout to undefined to prevent proactive behavior
   TooltipCompletionManager.disableProactiveBehavior();  // unregister tooltip completion provider if exists
@@ -356,6 +358,8 @@ function disableProactiveBehavior() {
   // Ensure the triggerMode is updated
   if (triggerMode == TriggerMode.Proactive) {
     // Change the config to TriggerMode.OnDemand
+    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+    await config.update('triggerMode', TriggerMode.OnDemand, vscode.ConfigurationTarget.Global);
   }
 }
 

@@ -1,4 +1,6 @@
 node_modules/*
 package-lock.json
 out/*
+out/extension.js
+out/extension.js.map
 .env
