@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { ChatbotPanel } from ".\\ChatbotPanel"; // Import the ChatbotPanel
 import { SettingsWizardPanel } from './SettingsWizardPanel'; 
 import { TriggerMode, DisplayMode } from "./utilities/settings";
+
+import { CustomActionProvider } from './CustomActionProvider';
 import { GPTSessionManager } from './GPT';
 import { TooltipProviderManager } from './TooltipProviderManager';
 import { InlineProviderManager } from './InlineProviderManager';
@@ -128,17 +130,46 @@ export function activate(context: vscode.ExtensionContext) {
   );  
 
    // Register command to toggle proactive suggestions
-   context.subscriptions.push(
-      vscode.commands.registerCommand('llmCodeCompletion.toggleAutomaticSuggestions', () => {
-        if (triggerMode == TriggerMode.Proactive) {
-          disableProactiveBehavior();
-          vscode.window.showInformationMessage('Automatic suggestions disabled.');
-        } else {
-          enableProactiveBehavior();
-          vscode.window.showInformationMessage('Automatic suggestions enabled.');
-        }
+  context.subscriptions.push(
+    vscode.commands.registerCommand('llmCodeCompletion.toggleAutomaticSuggestions', () => {
+      if (triggerMode == TriggerMode.Proactive) {
+        disableProactiveBehavior();
+        vscode.window.showInformationMessage('Automatic suggestions disabled.');
+      } else {
+        enableProactiveBehavior();
+        vscode.window.showInformationMessage('Automatic suggestions enabled.');
+      }
     })
-   );
+  );
+
+  const codeActionProvider = vscode.languages.registerCodeActionsProvider(
+    { scheme: '*'}, // Adjust for your language
+    new CustomActionProvider(),
+    { providedCodeActionKinds: CustomActionProvider.providedCodeActionKinds }
+  );
+  // Add the registration to the context's subscriptions
+  context.subscriptions.push(codeActionProvider);
+
+  // Register the "Resolve TODO" command
+  const resolveTODOCommand = vscode.commands.registerCommand(
+    'extension.resolveTODO',
+    (document: vscode.TextDocument, range: vscode.Range) => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+
+      const line = document.lineAt(range.start.line).text;
+      const updatedLine = line.replace('TODO', 'Resolved'); // Replace "TODO" with "Resolved"
+
+      editor.edit((editBuilder) => {
+        editBuilder.replace(range, updatedLine);
+      });
+    }
+  );
+
+  // Add the command to the context's subscriptions
+  context.subscriptions.push(resolveTODOCommand);
 
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);  // Update settings automatically on change.
   //addButtonsToEditor(context); NON FUNZIONA

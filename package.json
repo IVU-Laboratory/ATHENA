@@ -65,7 +65,7 @@
             "chatbot",
             "hybrid"
           ],
-          "default": "tooltip",
+          "default": "inline",
           "description": "Choose how code suggestions are displayed."
         },
         "llmCodeCompletion.triggerMode": {
