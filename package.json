@@ -42,8 +42,8 @@
         "when": "editorTextFocus"
       },
       {
-        "command": "llmCodeCompletion.toggleInlineSuggestions",
-        "key": "ctrl+alt+i",
+        "command": "llmCodeCompletion.toggleAutomaticSuggestions",
+        "key": "ctrl+alt+a",
         "when": "editorTextFocus"
       },
       {
@@ -88,6 +88,11 @@
           "type": "boolean",
           "default": false,
           "description": "Include documentation references in suggestions."
+        },
+        "llmCodeCompletion.openaiAPIKey": {
+          "type": "string",
+          "default": "",
+          "description": "Set the OpenAI API key to use GPT-4o-mini model."
         }
       }
     }
