@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { ChatbotPanel } from ".\\ChatbotPanel"; // Import the ChatbotPanel
 import { SettingsWizardPanel } from './SettingsWizardPanel'; 
 import { TriggerMode, DisplayMode } from "./utilities/settings";
+
+import { CustomActionProvider } from './CustomActionProvider';
 import { requestGPT4 } from './GPT';
 import {InlineCompletionProvider} from "./InlineCompletionProvider";
 import * as dotenv from 'dotenv';
@@ -123,6 +125,35 @@ export function activate(context: vscode.ExtensionContext) {
 			ChatbotPanel.createOrShow(context.extensionUri, documentText);
 		})
   );  
+
+  const codeActionProvider = vscode.languages.registerCodeActionsProvider(
+    { scheme: '*'}, // Adjust for your language
+    new CustomActionProvider(),
+    { providedCodeActionKinds: CustomActionProvider.providedCodeActionKinds }
+  );
+  // Add the registration to the context's subscriptions
+  context.subscriptions.push(codeActionProvider);
+
+  // Register the "Resolve TODO" command
+  const resolveTODOCommand = vscode.commands.registerCommand(
+    'extension.resolveTODO',
+    (document: vscode.TextDocument, range: vscode.Range) => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+
+      const line = document.lineAt(range.start.line).text;
+      const updatedLine = line.replace('TODO', 'Resolved'); // Replace "TODO" with "Resolved"
+
+      editor.edit((editBuilder) => {
+        editBuilder.replace(range, updatedLine);
+      });
+    }
+  );
+
+  // Add the command to the context's subscriptions
+  context.subscriptions.push(resolveTODOCommand);
   
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);  // Update settings automatically on change.
   //addButtonsToEditor(context); NON FUNZIONA

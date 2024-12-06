@@ -3,7 +3,7 @@ import {requestGPT4} from './GPT';
 
 
 export class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
-
+    
     // Define the method to provide inline completion items
     async provideInlineCompletionItems(
       document: vscode.TextDocument,
