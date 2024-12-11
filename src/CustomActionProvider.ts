@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 
 export class CustomActionProvider implements vscode.CodeActionProvider {
+
+  /*
   public static readonly providedCodeActionKinds = [
     vscode.CodeActionKind.QuickFix,
   ];
@@ -28,7 +30,53 @@ export class CustomActionProvider implements vscode.CodeActionProvider {
     };
 
     return [action];
-  }
+  } */
+
+    public static readonly providedCodeActionKinds = [
+      vscode.CodeActionKind.QuickFix, 
+    ];
+  
+    provideCodeActions(
+      document: vscode.TextDocument,
+      range: vscode.Range,
+      context: vscode.CodeActionContext,
+      token: vscode.CancellationToken
+    ): vscode.CodeAction[] | undefined {
+      const editor = vscode.window.activeTextEditor;
+  
+      
+      if (!editor || editor.selection.isEmpty) {
+        return; // No actions if there's no text selected
+      }
+  
+      // Get the selected range
+      const selection = editor.selection;
+      const selectedText = document.getText(selection);
+  
+      
+      const explainAction = new vscode.CodeAction(
+        'Explain the code',
+        vscode.CodeActionKind.QuickFix
+      );
+      explainAction.command = {
+        command: 'extension.explainCode',
+        title: 'Explain the code',
+        arguments: [selectedText], 
+      };
+  
+      
+      const whyAction = new vscode.CodeAction(
+        'Why this code?',
+        vscode.CodeActionKind.QuickFix
+      );
+      whyAction.command = {
+        command: 'extension.whyThisCode',
+        title: 'Why this code?',
+        arguments: [selectedText], 
+      };
+  
+      return [explainAction, whyAction];
+    }
 }
 
 

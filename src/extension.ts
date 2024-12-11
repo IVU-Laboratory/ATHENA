@@ -32,7 +32,11 @@ var triggerMode: TriggerMode;
 var displayMode: DisplayMode;
 var suggestionGranularity: number;  // 1-10, indicates the granularity of the suggestion
 var includeDocumentation: boolean;  // Can be true or false to include or not the documentation in the suggestion
-var inlineMaxLength = 50;  // only works when displayMode="hybrid". Defines the maximum length of suggestions to be shown inline 
+var inlineMaxLength = 50;  // only works when displayMode="hybrid". Defines the maximum length of suggestions to be shown inline
+var commentsGranularity: number; 
+
+var completionText: string;
+var explanationText: string;
 
 var toggleCompletionButton: vscode.TextEditorDecorationType;
 var shortcuts = {};
@@ -80,7 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
     globalState.update(firstRunKey, true);
-      SettingsWizardPanel.createOrShow(context.extensionUri);
+    SettingsWizardPanel.createOrShow(context.extensionUri);
   
       // Mark the first run as complete
     globalState.update(firstRunKey, true);
@@ -102,6 +106,9 @@ export function activate(context: vscode.ExtensionContext) {
   if (triggerMode === TriggerMode.Proactive) {
     enableProactiveBehavior();
   }
+
+  completionText ='';
+  explanationText = '';
 
 	/* Register commands */
   context.subscriptions.push(
@@ -129,7 +136,7 @@ export function activate(context: vscode.ExtensionContext) {
 		})
   );  
 
-   // Register command to toggle proactive suggestions
+   
   context.subscriptions.push(
     vscode.commands.registerCommand('llmCodeCompletion.toggleAutomaticSuggestions', () => {
       if (triggerMode == TriggerMode.Proactive) {
@@ -147,31 +154,29 @@ export function activate(context: vscode.ExtensionContext) {
     new CustomActionProvider(),
     { providedCodeActionKinds: CustomActionProvider.providedCodeActionKinds }
   );
-  // Add the registration to the context's subscriptions
+  
   context.subscriptions.push(codeActionProvider);
 
-  // Register the "Resolve TODO" command
-  const resolveTODOCommand = vscode.commands.registerCommand(
-    'extension.resolveTODO',
-    (document: vscode.TextDocument, range: vscode.Range) => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor) {
-        return;
-      }
-
-      const line = document.lineAt(range.start.line).text;
-      const updatedLine = line.replace('TODO', 'Resolved'); // Replace "TODO" with "Resolved"
-
-      editor.edit((editBuilder) => {
-        editBuilder.replace(range, updatedLine);
+  
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.explainCode', (selectedText: string) => {
+      GPTSessionManager.getLLMExplanation(selectedText, "what").then(explanation => {
+        showSuggestionInSideWindow("", explanation);
       });
-    }
+    })
   );
 
-  // Add the command to the context's subscriptions
-  context.subscriptions.push(resolveTODOCommand);
-
+  // Register the "Why this code?" command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.whyThisCode', (selectedText: string) => {
+      GPTSessionManager.getLLMExplanation(selectedText, "why").then(explanation => {
+        showSuggestionInSideWindow("", explanation);
+      });
+    })
+  );
+  
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);  // Update settings automatically on change.
+  displayMode = DisplayMode.SideWindow
   //addButtonsToEditor(context); NON FUNZIONA
 }
   
@@ -188,7 +193,7 @@ function onTextChanged(event: vscode.TextDocumentChangeEvent) {
   typingTimeout = setTimeout(() => {
     if (hasSufficientContext(document)) {
       const position = event.contentChanges[0]?.range.end || new vscode.Position(0, 0);
-      triggerSuggestion(document, position);  //COMMENTATA DA CESARE PER TESTARE IL COMPLETIONITEM 
+      triggerSuggestion(document, position); 
     }
   }, idleTime);
 }
@@ -228,7 +233,7 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
   
   const contextText = extractContext(document, position);
 
-  const suggestion = await GPTSessionManager.getLLMSuggestion(contextText, includeDocumentation);
+  const suggestion = await GPTSessionManager.getLLMSuggestion(contextText, includeDocumentation, commentsGranularity);
 
   const editor = vscode.window.activeTextEditor;
   if (editor) {
@@ -247,7 +252,7 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
         break;
       case 'sideWindow':
         console.log("Showing sidewindow suggestion");
-        showSuggestionInSideWindow(suggestion);
+        showSuggestionInSideWindow(suggestion, "");
         break;
       case 'chatbot':
         console.log("Showing chatbot suggestion");
@@ -257,7 +262,7 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
         if (suggestion.length <= inlineMaxLength) {
           //showInlineSuggestion(editor, suggestion, position);
         } else {
-          showSuggestionInSideWindow(suggestion);
+          showSuggestionInSideWindow(suggestion, "");
         }
         break;
     }
@@ -328,19 +333,161 @@ function handleButtonClicks() {
 
 
 // Lateral window suggestion 
-function showSuggestionInSideWindow(suggestion: string) {
-  // Check if a panel exists before creating it
+function showSuggestionInSideWindow(suggestion: string, explanation: string) {
+
+  explanationText += (explanationText ? '\n' : '') + explanation;
+  completionText += (completionText ? '\n' : '') + suggestion;
+
   if (Sidepanel == null) {
     Sidepanel = vscode.window.createWebviewPanel(
       'codeSuggestion',
       'Code Suggestion',
       vscode.ViewColumn.Beside,
-      {}
+      {
+        enableScripts: true,
+      }
     );
   }
-  Sidepanel.webview.html = `<html><body><pre style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
+
+  Sidepanel.webview.onDidReceiveMessage((message) => {
+    switch (message.command) {
+      case 'clearSuggestion':
+        clearSuggestionPanel(); 
+        break;
+      case 'clearExplanation':
+        clearExplanationPanel(); 
+        break;
+      default:
+        console.warn(`Unknown command received: ${message.command}`);
+    }
+  });
+
+
+ // Sidepanel.webview.html = `<html><body><pre style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
+ Sidepanel.webview.html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Code Suggestions</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #1e1e1e; /* Dark grey background for the panel */
+          color: #f0f0f0; /* Light text for readability */
+        }
+        .accordion {
+          background-color: #2c2c2c; /* Slightly lighter grey for the panels */
+          border: 1px solid #444;
+          border-radius: 5px;
+          margin: 0;
+        }
+        .accordion-header {
+          padding: 10px;
+          cursor: pointer;
+          font-weight: bold;
+          color: #ffffff; /* Bright text for header */
+          background-color: #3a3a3a; /* Dark header background */
+          border-bottom: 1px solid #555;
+        }
+        .accordion-header:hover {
+          background-color: #444; /* Slightly brighter on hover */
+        }
+        .accordion-content {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease-out;
+          padding: 0 10px;
+          background-color: #2c2c2c;
+        }
+        .accordion-content.expanded {
+          max-height: 300px; /* Adjust based on content size */
+          padding: 10px;
+        }
+        pre {
+          white-space: pre-wrap;
+          word-wrap: break-word;
+          font-size: 13px;
+          line-height: 1.4;
+          color: #d4d4d4; /* Softer light grey for text content */
+        }
+        button.clear-btn {
+          margin-top: 10px;
+          padding: 5px 10px;
+          background-color: #d9534f; /* Bootstrap-like red button */
+          color: #ffffff;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        button.clear-btn:hover {
+          background-color: #c9302c; /* Slightly darker red on hover */
+        }
+      </style>
+    </head>
+    <body>
+      <div class="accordion">
+        <div class="accordion-header" onclick="toggleAccordion(this)">Code Suggestion</div>
+        <div class="accordion-content">
+          <pre id="suggestion-content">${suggestion}</pre>
+          <button class="clear-btn" onclick="clearSuggestion()">Clear Completion</button>
+        </div>
+      </div>
+      <div class="accordion">
+        <div class="accordion-header" onclick="toggleAccordion(this)">Code Explanation</div>
+        <div class="accordion-content">
+          <pre id="explanation-content">${explanation}</pre>
+          <button class="clear-btn" onclick="clearExplanation()">Clear Explanation</button>
+        </div>
+      </div>
+      <script>
+        // Toggle the accordion
+        function toggleAccordion(header) {
+          const content = header.nextElementSibling;
+          if (content.classList.contains('expanded')) {
+            content.classList.remove('expanded');
+          } else {
+            content.classList.add('expanded');
+          }
+        }
+
+        // Clear the suggestion content
+        function clearSuggestion() {
+          const vscode = acquireVsCodeApi();
+          vscode.postMessage({ command: 'clearSuggestion' });
+        }
+
+        // Clear the explanation content
+        function clearExplanation() {
+          const vscode = acquireVsCodeApi();
+          vscode.postMessage({ command: 'clearExplanation' });
+        }
+      </script>
+    </body>
+    </html>
+  `;
 }
 
+//functions to clear the side panel
+function clearSidePanel(){
+  completionText = '';
+  explanationText = '';
+
+  showSuggestionInSideWindow("","");
+}
+
+function clearSuggestionPanel(){
+  completionText='';
+  showSuggestionInChatbot("","");
+}
+
+function clearExplanationPanel(){
+  explanationText='';
+  showSuggestionInChatbot("","");
+}
 
 // Chatbot suggestion (potrebbe non servire)
 export function showSuggestionInChatbot(suggestion: string, contextText: string) {

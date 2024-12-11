@@ -5,6 +5,7 @@ export class GPTSessionManager {
   private static sessionContext: string = ""; // Store session context
   private static conversationHistory: { role: string; content: string }[] = [];
   private static apiKey: string = ""; // OpenAI API key
+  private static explanationHistory: {role: string; content: string}[]=[];
 
   public static initialize(apiKey: string) {  // initialPrompt: string) {
       this.apiKey = apiKey;
@@ -15,10 +16,37 @@ export class GPTSessionManager {
       // Add the initial system prompt
       this.conversationHistory.push({ role: "system", content: initialPrompt });
       this.sessionContext = initialPrompt;
+
+      const explanationPrompt = 'Your task is to explain the code provided by the user. The explanation must not be too long, try to be concise.'
+      this.explanationHistory.push({role: "system", content: explanationPrompt});
+
+  }
+
+  public static async getLLMExplanation(context : string, type: string): Promise<string> {
+    if (this.apiKey == "") {
+      return "Set an OpenAI API key within the settings!";
+    }    
+
+    let prompt = ``;
+    switch (type) {
+      case "why":
+        prompt = `Explain the reasons why the following code was suggested: \n ${context}\n`;
+        break;
+      case "what":
+        prompt = `Explain the provided code workflow: \n ${context}\n`;
+        break;    
+      default:
+        prompt = `Explain the following code: \n ${context}\n`;
+        break;
+    }
+    
+    let suggestion = await this.getExplanation(prompt);
+    console.log(suggestion);
+    return suggestion;
   }
 
   
-  public static async getLLMSuggestion(context: string, includeDocumentation: boolean = false): Promise<string> {
+  public static async getLLMSuggestion(context: string, includeDocumentation: boolean = false, comments: number | undefined =0): Promise<string> {
     if (this.apiKey == "") {
       return "Set an OpenAI API key within the settings!";
     }    
@@ -32,6 +60,37 @@ export class GPTSessionManager {
     return suggestion;
   }
 
+  private static async getExplanation(prompt: string): Promise<string> {
+    const axios = require("axios");
+    this.explanationHistory.push({ role: "user", content: prompt });
+    try {
+      // Send the request to the OpenAI API
+      const response = await axios.post(
+        "https://api.openai.com/v1/chat/completions",
+        {
+            model: "gpt-4o-mini",
+            messages: this.explanationHistory,
+            max_completion_tokens: 100,
+            temperature: 0.7,
+            n: 1  // number of choices
+        },
+        {
+            headers: {
+                "Authorization": `Bearer ${this.apiKey}`,
+                "Content-Type": "application/json",
+            },
+        }
+      );
+      // Extract and return the assistant's reply
+      let explanation = response.data.choices[0].message.content;  
+      return explanation;      
+  } catch (error) {
+    console.error('Error communicating with GPT model: ', error);
+    return '';
+  } finally {
+    this.explanationHistory.pop();
+  }
+}    
 
   // Get completions with minimal input
   private static async getCompletion(prompt: string): Promise<string> {
