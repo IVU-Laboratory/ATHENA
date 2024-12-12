@@ -74,8 +74,18 @@ export class CustomActionProvider implements vscode.CodeActionProvider {
         title: 'Why this code?',
         arguments: [selectedText], 
       };
+
+      const chatbotAction = new vscode.CodeAction(
+        'Open in chatbot',
+        vscode.CodeActionKind.QuickFix
+      );
+      chatbotAction.command = {
+        command: 'llmCodeCompletion.showChatbot',
+        title: 'Open in chatbot',
+        arguments: [selectedText], 
+      };
   
-      return [explainAction, whyAction];
+      return [explainAction, whyAction, chatbotAction];
     }
 }
 

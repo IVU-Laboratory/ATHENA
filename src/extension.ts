@@ -166,6 +166,8 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+
+
   // Register the "Why this code?" command
   context.subscriptions.push(
     vscode.commands.registerCommand('extension.whyThisCode', (selectedText: string) => {
@@ -174,7 +176,26 @@ export function activate(context: vscode.ExtensionContext) {
       });
     })
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('extension.openInChatbot', (selectedText: string) => {
+      GPTSessionManager.getLLMExplanation(selectedText, "what").then(explanation => {
+        const editor = vscode.window.activeTextEditor;
+        let code: string="";
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor found. Please open a file to get context.');
+        } else{
+          const document = editor.document;
+          code = document.getText();
+        }
+        showSuggestionInChatbot(explanation, code);
+      });
+    })
+  );
+
   
+  
+
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);  // Update settings automatically on change.
   displayMode = DisplayMode.SideWindow
   //addButtonsToEditor(context); NON FUNZIONA
@@ -335,8 +356,25 @@ function handleButtonClicks() {
 // Lateral window suggestion 
 function showSuggestionInSideWindow(suggestion: string, explanation: string) {
 
-  explanationText += (explanationText ? '\n' : '') + explanation;
-  completionText += (completionText ? '\n' : '') + suggestion;
+  ////explanationText += (explanationText ? '\n' : '') + explanation;
+  //completionText += (completionText ? '\n' : '') + suggestion;
+
+  if(suggestion!= ""){
+    completionText += `
+    <div class="chat-block suggestion-block">
+      <pre>${suggestion}</pre>
+    </div>
+  `;
+  }
+  
+
+  if(explanation!=""){
+    explanationText += `
+    <div class="chat-block explanation-block">
+      <div>${explanation}</div>
+    </div>
+  `;
+  }
 
   if (Sidepanel == null) {
     Sidepanel = vscode.window.createWebviewPanel(
@@ -376,26 +414,51 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
-          background-color: #1e1e1e; /* Dark grey background for the panel */
-          color: #f0f0f0; /* Light text for readability */
+          background-color: #1e1e1e; /* Dark grey background */
+          color: #f0f0f0; /* Light text */
         }
+
+        /* Chat blocks container */
+        .chat-block {
+          margin: 10px 0;
+          padding: 10px;
+          border-radius: 5px;
+        }
+
+        /* Styling for suggestion blocks */
+        .suggestion-block {
+          background-color: #2c2c2c; /* Darker grey for suggestion blocks */
+          color: #d4d4d4; /* Softer light grey text */
+          border: 1px solid #444;
+        }
+
+        /* Styling for explanation blocks */
+        .explanation-block {
+          background-color: #3a3a3a; /* Slightly lighter grey for explanation blocks */
+          color: #f0f0f0; /* White text for better contrast */
+          border: 1px solid #555;
+        }
+
+        /* Accordion styling */
         .accordion {
-          background-color: #2c2c2c; /* Slightly lighter grey for the panels */
+          background-color: #2c2c2c;
           border: 1px solid #444;
           border-radius: 5px;
           margin: 0;
         }
+
         .accordion-header {
           padding: 10px;
           cursor: pointer;
           font-weight: bold;
-          color: #ffffff; /* Bright text for header */
-          background-color: #3a3a3a; /* Dark header background */
+          color: #ffffff;
+          background-color: #3a3a3a;
           border-bottom: 1px solid #555;
         }
         .accordion-header:hover {
-          background-color: #444; /* Slightly brighter on hover */
+          background-color: #444;
         }
+
         .accordion-content {
           max-height: 0;
           overflow: hidden;
@@ -407,43 +470,58 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
           max-height: 300px; /* Adjust based on content size */
           padding: 10px;
         }
-        pre {
-          white-space: pre-wrap;
-          word-wrap: break-word;
-          font-size: 13px;
-          line-height: 1.4;
-          color: #d4d4d4; /* Softer light grey for text content */
-        }
+
+        /* Buttons */
         button.clear-btn {
           margin-top: 10px;
           padding: 5px 10px;
-          background-color: #d9534f; /* Bootstrap-like red button */
+          background-color: #d9534f;
           color: #ffffff;
           border: none;
           border-radius: 4px;
           cursor: pointer;
         }
         button.clear-btn:hover {
-          background-color: #c9302c; /* Slightly darker red on hover */
+          background-color: #c9302c;
         }
       </style>
     </head>
     <body>
+      <!-- Code Suggestion Panel -->
       <div class="accordion">
         <div class="accordion-header" onclick="toggleAccordion(this)">Code Suggestion</div>
-        <div class="accordion-content">
-          <pre id="suggestion-content">${suggestion}</pre>
-          <button class="clear-btn" onclick="clearSuggestion()">Clear Completion</button>
+        <div class="accordion-content expanded" id="suggestion-panel">
+          ${completionText}
+          <button class="clear-btn" onclick="clearSuggestion()">Clear</button>
         </div>
       </div>
+
+      <!-- Explanation Panel -->
       <div class="accordion">
         <div class="accordion-header" onclick="toggleAccordion(this)">Code Explanation</div>
-        <div class="accordion-content">
-          <pre id="explanation-content">${explanation}</pre>
-          <button class="clear-btn" onclick="clearExplanation()">Clear Explanation</button>
+        <div class="accordion-content expanded" id="explanation-panel">
+          ${explanationText}
+          <button class="clear-btn" onclick="clearExplanation()">Clear</button>
         </div>
       </div>
+
       <script>
+        // Automatically expand the corresponding panel
+        function expandPanel(panelId) {
+          const panel = document.getElementById(panelId);
+          if (panel && !panel.classList.contains('expanded')) {
+            panel.classList.add('expanded');
+          }
+        }
+
+        // Automatically expand panels based on the presence of content
+        if (${JSON.stringify(completionText)}) {
+          expandPanel('suggestion-panel');
+        }
+        if (${JSON.stringify(explanationText)}) {
+          expandPanel('explanation-panel');
+        }
+
         // Toggle the accordion
         function toggleAccordion(header) {
           const content = header.nextElementSibling;
@@ -481,12 +559,12 @@ function clearSidePanel(){
 
 function clearSuggestionPanel(){
   completionText='';
-  showSuggestionInChatbot("","");
+  showSuggestionInSideWindow("","");
 }
 
 function clearExplanationPanel(){
   explanationText='';
-  showSuggestionInChatbot("","");
+  showSuggestionInSideWindow("","");
 }
 
 // Chatbot suggestion (potrebbe non servire)
