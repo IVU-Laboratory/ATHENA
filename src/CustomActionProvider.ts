@@ -66,7 +66,7 @@ export class CustomActionProvider implements vscode.CodeActionProvider {
   
       
       const whyAction = new vscode.CodeAction(
-        'Why this code?',
+        'Why this code?',  // TODO: verificare sia okay come label 
         vscode.CodeActionKind.QuickFix
       );
       whyAction.command = {

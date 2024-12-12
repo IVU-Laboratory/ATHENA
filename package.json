@@ -59,14 +59,49 @@
         "llmCodeCompletion.displayMode": {
           "type": "string",
           "enum": [
-            "tooltip",
             "inline",
+            "tooltip",
             "sideWindow",
             "chatbot",
             "hybrid"
           ],
           "default": "sideWindow",
-          "description": "Choose how code suggestions are displayed."
+          "description": "Choose how code suggestions are displayed.",
+          "markdownEnumDescriptions": [
+            "Inline: Show code suggestions inline, next to your code.",
+            "Tooltip: Show code suggestions in a popup window near your cursor.",
+            "Side Window: Show code suggestions in a minimal side window.",
+            "Chatbot: Show code suggestions within an interactive chatbot in a side window.",
+            "Hybrid: Choose how to show code suggestions depending on their length."
+          ]
+        },
+        "llmCodeCompletion.hybridModeShortSuggestions": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "tooltip"
+          ],
+          "default": "inline",
+          "description": "Only works when Display Mode is set to 'hybrid' - Choose how to display short code suggestions.",
+          "when": "llmCodeCompletion.showHybridConfigs",
+          "markdownEnumDescriptions": [
+            "Inline: Show short code suggestions inline, next to your code.",
+            "Tooltip: Show short code suggestions in a popup window near your cursor."
+          ]
+        },
+        "llmCodeCompletion.hybridModeLongSuggestions": {
+          "type": "string",
+          "enum": [
+            "sideWindow",
+            "chatbot"
+          ],
+          "default": "sideWindow",
+          "description": "Only works when Display Mode is set to 'hybrid' - Choose how to display long code suggestions.",
+          "when": "llmCodeCompletion.showHybridConfigs",
+          "markdownEnumDescriptions": [
+            "Side Window: Show long code suggestions in a minimal side window.",
+            "Chatbot: Show long code suggestions within an interactive chatbot in a side window."
+          ]
         },
         "llmCodeCompletion.triggerMode": {
           "type": "string",
@@ -82,7 +117,7 @@
           "minimum": 1,
           "maximum": 10,
           "default": 8,
-          "description": "Adjust the granularity of code suggestions."
+          "description": "Adjust the granularity of code suggestions (min. 1, max. 10)."
         },
         "llmCodeCompletion.includeDocumentation": {
           "type": "boolean",
