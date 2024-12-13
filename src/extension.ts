@@ -185,7 +185,6 @@ export function activate(context: vscode.ExtensionContext) {
   );
   
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);  // Update settings automatically on change.
-  displayMode = DisplayMode.SideWindow
   //addButtonsToEditor(context); NON FUNZIONA
 }
   
@@ -519,10 +518,9 @@ export function showSuggestionInChatbot(suggestion: string, contextText: string)
 /* ----------- Configuration related functions ------------ */
 
 function onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
-  if(event.affectsConfiguration('llmCodeCompletion.triggerMode') || event.affectsConfiguration('llmCodeCompletion.displayMode') || event.affectsConfiguration('llmCodeCompletion.suggestionGranularity') || event.affectsConfiguration('llmCodeCompletion.includeDocumentation') || event.affectsConfiguration('llmCodeCompletion.inlineMaxLength')){
-    console.log(`Configuration changed. \n- triggerMode changed? ${event.affectsConfiguration('llmCodeCompletion.triggerMode')} \n- displayMode changed? ${event.affectsConfiguration('llmCodeCompletion.displayMode')}`);
+  if(event.affectsConfiguration('llmCodeCompletion')){
+    // console.log(`Configuration changed. \n- triggerMode changed? ${event.affectsConfiguration('llmCodeCompletion.triggerMode')} \n- displayMode changed? ${event.affectsConfiguration('llmCodeCompletion.displayMode')}`);
     loadSettings();
-    //if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
     if (triggerMode === TriggerMode.Proactive) {
       enableProactiveBehavior();
     } else {
