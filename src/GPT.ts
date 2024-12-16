@@ -26,6 +26,7 @@ export class GPTSessionManager {
     if (this.apiKey == "") {
       return "Set an OpenAI API key within the settings!";
     }    
+    return "Explanation: This is a very very very veeeeeeeeeeeeeeeeeeeeeeeeeeeery looooooooooooooooooooooooooooong explanation!!!!"
 
     let prompt = ``;
     switch (type) {
@@ -50,6 +51,8 @@ export class GPTSessionManager {
     if (this.apiKey == "") {
       return "Set an OpenAI API key within the settings!";
     }    
+    // return "Suggestion: This is a very very very veeeeeeeeeeeeeeeeeeeeeeeeeeeery looooooooooooooooooooooooooooong suggestion!!!!"
+    // return "Suggestion: short suggestion"
     let prompt = includeDocumentation
         ? `Provide a suggestion with documentation based on the context:\n ${context}`  // TODO probabilmente dovremmo cambiare il prompt al cambio del parametro
         : `Context:\n ${context}`;

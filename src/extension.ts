@@ -30,6 +30,8 @@ let currentPosition: vscode.Position | null = null;
 // Default values for settings 
 var triggerMode: TriggerMode;
 var displayMode: DisplayMode;
+var displayModeHybridShort: DisplayMode;
+var displayModeHybridLong: DisplayMode;
 var suggestionGranularity: number;  // 1-10, indicates the granularity of the suggestion
 var includeDocumentation: boolean;  // Can be true or false to include or not the documentation in the suggestion
 var inlineMaxLength = 50;  // only works when displayMode="hybrid". Defines the maximum length of suggestions to be shown inline
@@ -48,7 +50,15 @@ var Sidepanel: vscode.WebviewPanel | undefined;
 export function activate(context: vscode.ExtensionContext) {
   console.log ("Starting LLM Code completion extension");
   ExtensionContext = context;
-  loadSettings();  // Load settings into global variables
+
+  const hasRunWizard = context.globalState.get<boolean>('hasRunWizard', false);
+  if (!hasRunWizard) {
+    // Run the configuration wizard
+    runConfigurationWizard();
+  } else {
+    loadSettings();  // Load settings into global variables
+  }
+
   let envPath = path.join(context.extensionPath, '.env');
   let env_loaded = dotenv.config({ path: envPath });  // Load .env file
   if (env_loaded.error) {
@@ -135,7 +145,6 @@ export function activate(context: vscode.ExtensionContext) {
 			ChatbotPanel.createOrShow(context.extensionUri, documentText);
 		})
   );  
-
    
   context.subscriptions.push(
     vscode.commands.registerCommand('llmCodeCompletion.toggleAutomaticSuggestions', () => {
@@ -154,9 +163,9 @@ export function activate(context: vscode.ExtensionContext) {
     new CustomActionProvider(),
     { providedCodeActionKinds: CustomActionProvider.providedCodeActionKinds }
   );
-  
-  context.subscriptions.push(codeActionProvider);
 
+  context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', 
+    runConfigurationWizard));
   
   context.subscriptions.push(
     vscode.commands.registerCommand('extension.explainCode', (selectedText: string) => {
@@ -197,7 +206,6 @@ export function activate(context: vscode.ExtensionContext) {
   
 
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);  // Update settings automatically on change.
-  displayMode = DisplayMode.SideWindow
   //addButtonsToEditor(context); NON FUNZIONA
 }
   
@@ -276,14 +284,23 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
         showSuggestionInSideWindow(suggestion, "");
         break;
       case 'chatbot':
-        console.log("Showing chatbot suggestion");
         //showSuggestionInChatbot(suggestion,contextText);
         break;
       case 'hybrid': 
         if (suggestion.length <= inlineMaxLength) {
-          //showInlineSuggestion(editor, suggestion, position);
+          // Short suggestion
+          if (displayModeHybridShort == DisplayMode.Inline) {
+            InlineCompletionManager.provideOnDemandSuggestion(editor, suggestion, position);
+          } else if (displayModeHybridShort == DisplayMode.Tooltip) {
+            TooltipCompletionManager.provideOnDemandSuggestion(editor, suggestion, position);
+          }
         } else {
-          showSuggestionInSideWindow(suggestion, "");
+          // Long suggestion
+          if (displayModeHybridLong == DisplayMode.SideWindow) {
+            showSuggestionInSideWindow(suggestion, "");
+          } else if (displayModeHybridLong == DisplayMode.Chatbot) {
+            showSuggestionInChatbot(suggestion,contextText);
+          }
         }
         break;
     }
@@ -593,10 +610,9 @@ export function showSuggestionInChatbot(suggestion: string, contextText: string)
 /* ----------- Configuration related functions ------------ */
 
 function onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
-  if(event.affectsConfiguration('llmCodeCompletion.triggerMode') || event.affectsConfiguration('llmCodeCompletion.displayMode') || event.affectsConfiguration('llmCodeCompletion.suggestionGranularity') || event.affectsConfiguration('llmCodeCompletion.includeDocumentation') || event.affectsConfiguration('llmCodeCompletion.inlineMaxLength')){
-    console.log(`Configuration changed. \n- triggerMode changed? ${event.affectsConfiguration('llmCodeCompletion.triggerMode')} \n- displayMode changed? ${event.affectsConfiguration('llmCodeCompletion.displayMode')}`);
+  if(event.affectsConfiguration('llmCodeCompletion')){
+    // console.log(`Configuration changed. \n- triggerMode changed? ${event.affectsConfiguration('llmCodeCompletion.triggerMode')} \n- displayMode changed? ${event.affectsConfiguration('llmCodeCompletion.displayMode')}`);
     loadSettings();
-    //if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
     if (triggerMode === TriggerMode.Proactive) {
       enableProactiveBehavior();
     } else {
@@ -628,10 +644,10 @@ function getOpenAIAPIkey(): string {
 
 async function enableProactiveBehavior() {
   proactiveCompletionListener = vscode.workspace.onDidChangeTextDocument(onTextChanged);
-  if (displayMode === DisplayMode.Tooltip) {
+  if (displayMode === DisplayMode.Tooltip || (displayMode === DisplayMode.Hybrid && displayModeHybridShort === DisplayMode.Tooltip)) {
     // Register the completion provider for proactive tooltip display
     ExtensionContext.subscriptions.push(TooltipCompletionManager.enableProactiveBehavior());
-  } else if (displayMode === DisplayMode.Inline) {
+  } else if (displayMode === DisplayMode.Inline ||  (displayMode === DisplayMode.Hybrid && displayModeHybridShort === DisplayMode.Inline)) {
     // Register the completion provider for proactive inline display
     ExtensionContext.subscriptions.push(InlineCompletionManager.enableProactiveBehavior());
   }
@@ -658,10 +674,77 @@ async function disableProactiveBehavior() {
 }
 
 
+async function runConfigurationWizard() {
+  const context = ExtensionContext;
+  // Ask the user their programming level
+  const programmingLevels = ['Beginner', 'Intermediate', 'Advanced'];
+  let programmingLevel = await vscode.window.showQuickPick(programmingLevels, {
+    placeHolder: 'LLM Code Completion extension configuration: Select your programming level...',
+  });
+  programmingLevel = programmingLevel?.toLowerCase();
+
+  if (!programmingLevel) {
+    // User canceled the wizard
+    vscode.window.showInformationMessage('Setup canceled.');
+    return;
+  }
+
+  // Update the default settings based on the chosen experience level
+  setDefaultSettings(programmingLevel);
+
+  // Show the editable settings
+  /*vscode.window.showInformationMessage(
+    `So you are ${programmingLevel == "beginner" ? "a" : "an"} ${programmingLevel} programmer. You can now customize your experience with the LLM code completion extension.`
+  );*/
+  vscode.commands.executeCommand('workbench.action.openSettings', 'llmCodeCompletion');  // Open the extension's settings panel
+
+  // Mark the wizard as completed
+  context.globalState.update('hasRunWizard', true);
+}
+
+
+async function setDefaultSettings(programmingLevel: string) {
+  switch(programmingLevel){
+    case 'beginner':
+      triggerMode = TriggerMode.Proactive;
+      displayMode = DisplayMode.Chatbot;
+      includeDocumentation = true;
+      suggestionGranularity = 5;
+      break;
+    case 'intermediate':
+      triggerMode = TriggerMode.OnDemand;
+      displayMode = DisplayMode.Hybrid;
+      displayModeHybridShort = DisplayMode.Inline;
+      displayModeHybridLong = DisplayMode.Chatbot;
+      suggestionGranularity = 5;
+      includeDocumentation = true;
+      break;
+    case 'advanced':
+      triggerMode = TriggerMode.OnDemand;
+      displayMode = DisplayMode.Hybrid;
+      displayModeHybridShort = DisplayMode.Tooltip;
+      displayModeHybridLong = DisplayMode.SideWindow;
+      suggestionGranularity = 5;
+      includeDocumentation = false;
+      break;
+  }
+  // Update settings with default values
+  const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+  await config.update('triggerMode', triggerMode, vscode.ConfigurationTarget.Global);
+  await config.update('displayMode', displayMode, vscode.ConfigurationTarget.Global);
+  await config.update('hybridModeShortSuggestions', displayModeHybridShort, vscode.ConfigurationTarget.Global);
+  await config.update('hybridModeLongSuggestions', displayModeHybridLong, vscode.ConfigurationTarget.Global);
+  await config.update('suggestionGranularity', suggestionGranularity, vscode.ConfigurationTarget.Global);
+  await config.update('includeDocumentation', includeDocumentation, vscode.ConfigurationTarget.Global);
+}
+
+
 function loadSettings() {
   // Automatically update global parameters from settings
   const config = vscode.workspace.getConfiguration('llmCodeCompletion');
   triggerMode = config.get<TriggerMode>('triggerMode', TriggerMode.OnDemand);
+  displayModeHybridShort = config.get<DisplayMode>('hybridModeShortSuggestions', DisplayMode.Inline);
+  displayModeHybridLong = config.get<DisplayMode>('hybridModeLongSuggestions', DisplayMode.SideWindow);
   displayMode = config.get<DisplayMode>('displayMode', DisplayMode.Inline);
   suggestionGranularity = config.get<number>('suggestionGranularity', 5);  // Default is 5
   includeDocumentation = config.get<boolean>('includeDocumentation', false);  // Default is false
@@ -675,6 +758,9 @@ function loadSettings() {
     openChatbot: config.get('shortcuts.openChatbot', 'ctrl+alt+p'),
   };
   console.log(`Settings loaded:\nDisplay mode = ${displayMode}\nTrigger mode = ${triggerMode}\nSuggestion granularity = ${suggestionGranularity}\n`);
+  
+  // Dynamically shows/hides the hybrid parameters
+  vscode.commands.executeCommand('setContext', 'llmCodeCompletion.showHybridConfigs', displayMode === DisplayMode.Hybrid);  //TODO: does not work
 
   return { displayMode, triggerMode, suggestionGranularity, includeDocumentation, shortcuts };
 }
