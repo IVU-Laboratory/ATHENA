@@ -17,7 +17,7 @@ export class GPTSessionManager {
       this.conversationHistory.push({ role: "system", content: initialPrompt });
       this.sessionContext = initialPrompt;
 
-      const explanationPrompt = 'Your task is to explain the code provided by the user. The explanation must not be too long, try to be concise.'
+      const explanationPrompt = 'Your task is to explain the code provided by the user. The explanation must be very short.'
       this.explanationHistory.push({role: "system", content: explanationPrompt});
 
   }
@@ -30,7 +30,7 @@ export class GPTSessionManager {
     let prompt = ``;
     switch (type) {
       case "why":
-        prompt = `Explain the reasons why the following code was suggested: \n ${context}\n`;
+        prompt = `Explain the reasons why the following code was suggested and, if possible, refer to some documentation: \n ${context}\n`;
         break;
       case "what":
         prompt = `Explain the provided code workflow: \n ${context}\n`;
