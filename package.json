@@ -62,7 +62,6 @@
             "inline",
             "tooltip",
             "sideWindow",
-            "chatbot",
             "hybrid"
           ],
           "default": "sideWindow",
@@ -71,7 +70,6 @@
             "Inline: Show code suggestions inline, next to your code.",
             "Tooltip: Show code suggestions in a popup window near your cursor.",
             "Side Window: Show code suggestions in a minimal side window.",
-            "Chatbot: Show code suggestions within an interactive chatbot in a side window.",
             "Hybrid: Choose how to show code suggestions depending on their length."
           ]
         },
@@ -89,20 +87,6 @@
             "Tooltip: Show short code suggestions in a popup window near your cursor."
           ]
         },
-        "llmCodeCompletion.hybridModeLongSuggestions": {
-          "type": "string",
-          "enum": [
-            "sideWindow",
-            "chatbot"
-          ],
-          "default": "sideWindow",
-          "description": "Only works when Display Mode is set to 'hybrid' - Choose how to display long code suggestions.",
-          "when": "llmCodeCompletion.showHybridConfigs",
-          "markdownEnumDescriptions": [
-            "Side Window: Show long code suggestions in a minimal side window.",
-            "Chatbot: Show long code suggestions within an interactive chatbot in a side window."
-          ]
-        },
         "llmCodeCompletion.triggerMode": {
           "type": "string",
           "enum": [
@@ -114,15 +98,56 @@
         },
         "llmCodeCompletion.suggestionGranularity": {
           "type": "number",
-          "minimum": 1,
-          "maximum": 10,
-          "default": 8,
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "default": 5,
           "description": "Adjust the granularity of code suggestions (min. 1, max. 10)."
+        },
+        "llmCodeCompletion.commentFrequency": {
+          "type": "number",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "default": 1,
+          "description": "Adjust the frequency of comments in the generated code (min. 0, max. 3)."
         },
         "llmCodeCompletion.includeDocumentation": {
           "type": "boolean",
           "default": false,
           "description": "Include documentation references in suggestions."
+        },
+        "llmCodeCompletion.shortcutInvokeChatbot": {
+          "type": "string",
+          "default": "ctrl+alt+p",
+          "description": "Customize the shortcut to open the chatbot."
+        },
+        "llmCodeCompletion.shortcutOpenSettings": {
+          "type": "string",
+          "default": "ctrl+alt+t",
+          "description": "Customize the shortcut to open the settings."
+        },
+        "llmCodeCompletion.shortcutTriggerSuggestion": {
+          "type": "string",
+          "default": "ctrl+alt+s",
+          "description": "Customize the shortcut for triggering suggestions."
+        },
+        "llmCodeCompletion.shortcutToggleSuggestions": {
+          "type": "string",
+          "default": "ctrl+alt+q",
+          "description": "Customize the shortcut to toggle the suggestions activation."
         },
         "llmCodeCompletion.openaiAPIKey": {
           "type": "string",

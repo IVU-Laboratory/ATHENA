@@ -100,7 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
     globalState.update(firstRunKey, true);
    }
   */
-
+ /*
   const openSettingsCommand = vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', () => {
     SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
   });
@@ -707,7 +707,7 @@ async function setDefaultSettings(programmingLevel: string) {
   switch(programmingLevel){
     case 'beginner':
       triggerMode = TriggerMode.Proactive;
-      displayMode = DisplayMode.Chatbot;
+      displayMode = DisplayMode.Inline;
       includeDocumentation = true;
       suggestionGranularity = 5;
       break;
@@ -715,7 +715,7 @@ async function setDefaultSettings(programmingLevel: string) {
       triggerMode = TriggerMode.OnDemand;
       displayMode = DisplayMode.Hybrid;
       displayModeHybridShort = DisplayMode.Inline;
-      displayModeHybridLong = DisplayMode.Chatbot;
+      displayModeHybridLong = DisplayMode.SideWindow;
       suggestionGranularity = 5;
       includeDocumentation = true;
       break;
