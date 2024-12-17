@@ -118,10 +118,36 @@
           "default": 3,
           "description": "Adjust the granularity of code suggestions (min. 1, max. 5)."
         },
+        "athena.commentFrequency": {
+          "type": "number",
+          "enum": [ 0, 1, 2, 3],
+          "default": 1,
+          "description": "Adjust the frequency of comments in the generated code (min. 0, max. 3)."
+        },
         "athena.includeDocumentation": {
           "type": "boolean",
           "default": false,
           "description": "Include documentation references in suggestions."
+        },
+        "athena.invokeChatbotShortcut": {
+          "type": "string",
+          "default": "ctrl+alt+p",
+          "description": "Customize the shortcut to open the chatbot."
+        },
+        "athena.openSettingsWizardShortcut": {
+          "type": "string",
+          "default": "ctrl+alt+t",
+          "description": "Customize the shortcut to open the settings."
+        },
+        "athena.triggerSuggestionShortcut": {
+          "type": "string",
+          "default": "ctrl+alt+s",
+          "description": "Customize the shortcut for triggering suggestions."
+        },
+        "athena.toggleSuggestionsShortcut": {
+          "type": "string",
+          "default": "ctrl+alt+q",
+          "description": "Customize the shortcut to toggle the suggestions activation."
         },
         "athena.openaiAPIKey": {
           "type": "string",
