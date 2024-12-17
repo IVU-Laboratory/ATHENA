@@ -80,7 +80,7 @@ export class CustomActionProvider implements vscode.CodeActionProvider {
         vscode.CodeActionKind.QuickFix
       );
       chatbotAction.command = {
-        command: 'llmCodeCompletion.showChatbot',
+        command: 'athena.showChatbot',
         title: 'Open in chatbot',
         arguments: [selectedText], 
       };
