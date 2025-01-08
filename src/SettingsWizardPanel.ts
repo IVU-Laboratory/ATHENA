@@ -23,7 +23,7 @@ export class SettingsWizardPanel {
       SettingsWizardPanel.currentPanel = currentPanel;
   
       // Fetch the current configuration and pass it to the Webview
-      const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+      const config = vscode.workspace.getConfiguration('athena');
       panel.webview.postMessage({
         type: 'initialize',
         displayMode: config.get('displayMode'),
@@ -248,7 +248,7 @@ export class SettingsWizardPanel {
 
   private async _handleMessage(message: any) {
     if (message.type === 'save') {
-      const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+      const config = vscode.workspace.getConfiguration('athena');
   
       // Update general settings
       await config.update('displayMode', message.displayMode, vscode.ConfigurationTarget.Global);

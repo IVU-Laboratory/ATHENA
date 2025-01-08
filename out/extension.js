@@ -42,7 +42,7 @@ let proactiveCompletionListener; // The event listener for EVERY proactive sugge
 let InlineCompletionManager; // The completion provider for the inline suggestions
 let TooltipCompletionManager; // The completion provider for the tooltip suggestions 
 const extension_id = 'uniba.llm-code-completion';
-const settingsName = "llmCodeCompletion";
+const settingsName = "athena";
 let toggle_suggestions = true;
 let currentDecorationType = null;
 let currentSuggestion = null;
@@ -63,7 +63,7 @@ var shortcuts = {};
 var ExtensionContext;
 var Sidepanel;
 function activate(context) {
-    console.log("Starting LLM Code completion extension");
+    console.log("Starting ATHENA Code completion extension");
     ExtensionContext = context;
     const hasRunWizard = context.globalState.get('hasRunWizard', false);
     if (!hasRunWizard) {
@@ -80,13 +80,13 @@ function activate(context) {
     }
     /*
        // Check if it's the first run
-       const firstRunKey = 'llmCodeCompletion.firstRun';
+       const firstRunKey = 'athena.firstRun';
        const globalState = context.globalState;
        const isFirstRun = !globalState.get(firstRunKey, false);
      
        if (isFirstRun) {
         console.log("First time using the extension. Opening Settings Wizard.");
-        const conf = vscode.workspace.getConfiguration('llmCodeCompletion');
+        const conf = vscode.workspace.getConfiguration('athena');
         const defaultShortcuts = {
           toggleSuggestion: 'Ctrl+Alt+S',
           triggerSuggestion: 'Ctrl+Alt+R',
@@ -132,7 +132,7 @@ function activate(context) {
     completionText = '';
     explanationText = '';
     /* Register commands */
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.triggerSuggestion', async () => {
+    context.subscriptions.push(vscode.commands.registerCommand('athena.triggerSuggestion', async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
             const document = editor.document;
@@ -141,7 +141,7 @@ function activate(context) {
         }
     }));
     // Register the command to open the chatbot panel
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.showChatbot', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('athena.showChatbot', () => {
         const editor = vscode.window.activeTextEditor;
         var documentText = "";
         if (editor) {
@@ -149,7 +149,7 @@ function activate(context) {
         }
         ChatbotPanel_1.ChatbotPanel.createOrShow(context.extensionUri, documentText);
     }));
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.toggleAutomaticSuggestions', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('athena.toggleAutomaticSuggestions', () => {
         if (triggerMode == settings_1.TriggerMode.Proactive) {
             disableProactiveBehavior();
             vscode.window.showInformationMessage('Automatic suggestions disabled.');
@@ -161,7 +161,7 @@ function activate(context) {
     }));
     const codeActionProvider = vscode.languages.registerCodeActionsProvider({ scheme: '*' }, // Adjust for your language
     new CustomActionProvider_1.CustomActionProvider(), { providedCodeActionKinds: CustomActionProvider_1.CustomActionProvider.providedCodeActionKinds });
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', runConfigurationWizard));
+    context.subscriptions.push(vscode.commands.registerCommand('athena.openSettingsWizard', runConfigurationWizard));
     context.subscriptions.push(vscode.commands.registerCommand('extension.explainCode', (selectedText) => {
         GPT_1.GPTSessionManager.getLLMExplanation(selectedText, "what").then(explanation => {
             showSuggestionInSideWindow("", explanation);
@@ -209,10 +209,10 @@ function registerDynamicShortcuts(context, shortcuts) {
     const { toggleSuggestion, triggerSuggestion, openSettings, openChatbot } = shortcuts;
     // Register each command with its respective shortcut
     const keybindings = [
-        { command: 'llmCodeCompletion.toggleSuggestion', keybinding: toggleSuggestion },
-        { command: 'llmCodeCompletion.triggerSuggestion', keybinding: triggerSuggestion },
-        { command: 'llmCodeCompletion.openSettingsWizard', keybinding: openSettings },
-        { command: 'llmCodeCompletion.showChatbot', keybinding: openChatbot },
+        { command: 'athena.toggleSuggestion', keybinding: toggleSuggestion },
+        { command: 'athena.triggerSuggestion', keybinding: triggerSuggestion },
+        { command: 'athena.openSettingsWizard', keybinding: openSettings },
+        { command: 'athena.showChatbot', keybinding: openChatbot },
     ];
     keybindings.forEach(({ command, keybinding }) => {
         context.subscriptions.push(vscode.commands.registerCommand(command, () => {
@@ -318,7 +318,7 @@ function handleButtonClicks() {
         if (cursorPosition.line === 0) {
             const cursorChar = cursorPosition.character;
             if (cursorChar >= firstLineRange.start.character && cursorChar <= firstLineRange.end.character + 20) {
-                vscode.commands.executeCommand('llmCodeCompletion.toggleInlineSuggestions');
+                vscode.commands.executeCommand('athena.toggleInlineSuggestions');
             }
             else if (cursorChar > firstLineRange.end.character + 20 && cursorChar <= firstLineRange.end.character + 40) {
                 SettingsWizardPanel_1.SettingsWizardPanel.createOrShow(extension_uri);
@@ -543,8 +543,8 @@ function showSuggestionInChatbot(suggestion, contextText) {
 }
 /* ----------- Configuration related functions ------------ */
 function onConfigurationChanged(event) {
-    if (event.affectsConfiguration('llmCodeCompletion')) {
-        // console.log(`Configuration changed. \n- triggerMode changed? ${event.affectsConfiguration('llmCodeCompletion.triggerMode')} \n- displayMode changed? ${event.affectsConfiguration('llmCodeCompletion.displayMode')}`);
+    if (event.affectsConfiguration('athena')) {
+        // console.log(`Configuration changed. \n- triggerMode changed? ${event.affectsConfiguration('athena.triggerMode')} \n- displayMode changed? ${event.affectsConfiguration('athena.displayMode')}`);
         loadSettings();
         if (triggerMode === settings_1.TriggerMode.Proactive) {
             enableProactiveBehavior();
@@ -553,7 +553,7 @@ function onConfigurationChanged(event) {
             disableProactiveBehavior();
         }
     }
-    if (event.affectsConfiguration('llmCodeCompletion.openaiAPIKey')) {
+    if (event.affectsConfiguration('athena.openaiAPIKey')) {
         // set the openAI API key if it gets updated
         const new_api_key = getOpenAIAPIkey();
         if (new_api_key != "") {
@@ -564,7 +564,7 @@ function onConfigurationChanged(event) {
 function getOpenAIAPIkey() {
     let key = "";
     // try to fetch the API key from the configurations 
-    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+    const config = vscode.workspace.getConfiguration('athena');
     key = config.get("openaiAPIKey", "");
     if (key == "") {
         // try to fetch it from the .env file
@@ -585,7 +585,7 @@ async function enableProactiveBehavior() {
     // Ensure the triggerMode is updated
     if (triggerMode == settings_1.TriggerMode.OnDemand) {
         // Change the config to TriggerMode.Proactive
-        const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+        const config = vscode.workspace.getConfiguration('athena');
         await config.update('triggerMode', settings_1.TriggerMode.Proactive, vscode.ConfigurationTarget.Global);
     }
 }
@@ -597,7 +597,7 @@ async function disableProactiveBehavior() {
     // Ensure the triggerMode is updated
     if (triggerMode == settings_1.TriggerMode.Proactive) {
         // Change the config to TriggerMode.OnDemand
-        const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+        const config = vscode.workspace.getConfiguration('athena');
         await config.update('triggerMode', settings_1.TriggerMode.OnDemand, vscode.ConfigurationTarget.Global);
     }
 }
@@ -606,7 +606,7 @@ async function runConfigurationWizard() {
     // Ask the user their programming level
     const programmingLevels = ['Beginner', 'Intermediate', 'Advanced'];
     let programmingLevel = await vscode.window.showQuickPick(programmingLevels, {
-        placeHolder: 'LLM Code Completion extension configuration: Select your programming level...',
+        placeHolder: 'ATHENA Code Completion extension configuration: Select your programming level...',
     });
     programmingLevel = programmingLevel?.toLowerCase();
     if (!programmingLevel) {
@@ -618,9 +618,9 @@ async function runConfigurationWizard() {
     setDefaultSettings(programmingLevel);
     // Show the editable settings
     /*vscode.window.showInformationMessage(
-      `So you are ${programmingLevel == "beginner" ? "a" : "an"} ${programmingLevel} programmer. You can now customize your experience with the LLM code completion extension.`
+      `So you are ${programmingLevel == "beginner" ? "a" : "an"} ${programmingLevel} programmer. You can now customize your experience with the ATHENA code completion extension.`
     );*/
-    vscode.commands.executeCommand('workbench.action.openSettings', 'llmCodeCompletion'); // Open the extension's settings panel
+    vscode.commands.executeCommand('workbench.action.openSettings', 'athena'); // Open the extension's settings panel
     // Mark the wizard as completed
     context.globalState.update('hasRunWizard', true);
 }
@@ -650,7 +650,7 @@ async function setDefaultSettings(programmingLevel) {
             break;
     }
     // Update settings with default values
-    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+    const config = vscode.workspace.getConfiguration('athena');
     await config.update('triggerMode', triggerMode, vscode.ConfigurationTarget.Global);
     await config.update('displayMode', displayMode, vscode.ConfigurationTarget.Global);
     await config.update('hybridModeShortSuggestions', displayModeHybridShort, vscode.ConfigurationTarget.Global);
@@ -660,7 +660,7 @@ async function setDefaultSettings(programmingLevel) {
 }
 function loadSettings() {
     // Automatically update global parameters from settings
-    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+    const config = vscode.workspace.getConfiguration('athena');
     triggerMode = config.get('triggerMode', settings_1.TriggerMode.OnDemand);
     displayModeHybridShort = config.get('hybridModeShortSuggestions', settings_1.DisplayMode.Inline);
     displayModeHybridLong = config.get('hybridModeLongSuggestions', settings_1.DisplayMode.SideWindow);
@@ -676,7 +676,7 @@ function loadSettings() {
     };
     console.log(`Settings loaded:\nDisplay mode = ${displayMode}\nTrigger mode = ${triggerMode}\nSuggestion granularity = ${suggestionGranularity}\n`);
     // Dynamically shows/hides the hybrid parameters
-    vscode.commands.executeCommand('setContext', 'llmCodeCompletion.showHybridConfigs', displayMode === settings_1.DisplayMode.Hybrid); //TODO: does not work
+    vscode.commands.executeCommand('setContext', 'athena.showHybridConfigs', displayMode === settings_1.DisplayMode.Hybrid); //TODO: does not work
     return { displayMode, triggerMode, suggestionGranularity, includeDocumentation, shortcuts };
 }
 //# sourceMappingURL=extension.js.map

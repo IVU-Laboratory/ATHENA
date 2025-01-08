@@ -1,7 +1,7 @@
 {
-  "name": "llm-code-completion",
-  "displayName": "LLM Code Completion",
-  "description": "A VS Code extension for code completion using LLMs.",
+  "name": "athena",
+  "displayName": "ATHENA Code Completion",
+  "description": "ATHENA (AI Tool for Human-centered ENhanced coding Assistance) is a VS Code extension for code completion using LLMs.",
   "version": "0.0.1",
   "publisher": "uniba",
   "engines": {
@@ -19,44 +19,44 @@
   "contributes": {
     "commands": [
       {
-        "command": "llmCodeCompletion.triggerSuggestion",
+        "command": "athena.triggerSuggestion",
         "title": "Trigger Code Suggestion"
       },
       {
-        "command": "llmCodeCompletion.showChatbot",
+        "command": "athena.showChatbot",
         "title": "Open Chatbot Panel"
       },
       {
-        "command": "llmCodeCompletion.toggleInlineSuggestions",
+        "command": "athena.toggleInlineSuggestions",
         "title": "Toggle Inline Suggestions"
       },
       {
-        "command": "llmCodeCompletion.openSettingsWizard",
+        "command": "athena.openSettingsWizard",
         "title": "Open Settings Wizard"
       }
     ],
     "keybindings": [
       {
-        "command": "llmCodeCompletion.triggerSuggestion",
+        "command": "athena.triggerSuggestion",
         "key": "ctrl+alt+s",
         "when": "editorTextFocus"
       },
       {
-        "command": "llmCodeCompletion.toggleAutomaticSuggestions",
+        "command": "athena.toggleAutomaticSuggestions",
         "key": "ctrl+alt+a",
         "when": "editorTextFocus"
       },
       {
-        "command": "llmCodeCompletion.openSettingsWizard",
+        "command": "athena.openSettingsWizard",
         "key": "ctrl+alt+t",
         "when": "editorTextFocus"
       }
     ],
     "configuration": {
       "type": "object",
-      "title": "LLM Code Completion Settings",
+      "title": "LLM Code Completion",
       "properties": {
-        "llmCodeCompletion.displayMode": {
+        "athena.displayMode": {
           "type": "string",
           "enum": [
             "inline",
@@ -73,7 +73,7 @@
             "Hybrid: Choose how to show code suggestions depending on their length."
           ]
         },
-        "llmCodeCompletion.hybridModeShortSuggestions": {
+        "athena.hybridModeShortSuggestions": {
           "type": "string",
           "enum": [
             "inline",
@@ -81,13 +81,13 @@
           ],
           "default": "inline",
           "description": "Only works when Display Mode is set to 'hybrid' - Choose how to display short code suggestions.",
-          "when": "llmCodeCompletion.showHybridConfigs",
+          "when": "athena.showHybridConfigs",
           "markdownEnumDescriptions": [
             "Inline: Show short code suggestions inline, next to your code.",
             "Tooltip: Show short code suggestions in a popup window near your cursor."
           ]
         },
-        "llmCodeCompletion.triggerMode": {
+        "athena.triggerMode": {
           "type": "string",
           "enum": [
             "proactive",
@@ -96,24 +96,13 @@
           "default": "proactive",
           "description": "Choose how code suggestions are triggered."
         },
-        "llmCodeCompletion.suggestionGranularity": {
+        "athena.suggestionGranularity": {
           "type": "number",
-          "enum": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10
-          ],
           "default": 5,
-          "description": "Adjust the granularity of code suggestions (min. 1, max. 10)."
+          "description": "Adjust the granularity of code suggestions (min. 1, max. 10).",
+          "enum": [ 1, 2, 3,4,5,6,7,8,9,10]
         },
-        "llmCodeCompletion.commentFrequency": {
+        "athena.commentFrequency": {
           "type": "number",
           "enum": [
             0,
@@ -124,35 +113,35 @@
           "default": 1,
           "description": "Adjust the frequency of comments in the generated code (min. 0, max. 3)."
         },
-        "llmCodeCompletion.includeDocumentation": {
+        "athena.includeDocumentation": {
           "type": "boolean",
           "default": false,
           "description": "Include documentation references in suggestions."
         },
-        "llmCodeCompletion.shortcutInvokeChatbot": {
+        "athena.openaiAPIKey": {
+          "type": "string",
+          "default": "",
+          "description": "Set the OpenAI API key to use GPT-4o-mini model."
+        },
+        "athena.shortcutInvokeChatbot": {
           "type": "string",
           "default": "ctrl+alt+p",
           "description": "Customize the shortcut to open the chatbot."
         },
-        "llmCodeCompletion.shortcutOpenSettings": {
+        "athena.shortcutOpenSettings": {
           "type": "string",
           "default": "ctrl+alt+t",
           "description": "Customize the shortcut to open the settings."
         },
-        "llmCodeCompletion.shortcutTriggerSuggestion": {
+        "athena.shortcutTriggerSuggestion": {
           "type": "string",
           "default": "ctrl+alt+s",
           "description": "Customize the shortcut for triggering suggestions."
         },
-        "llmCodeCompletion.shortcutToggleSuggestions": {
+        "athena.shortcutToggleSuggestions": {
           "type": "string",
           "default": "ctrl+alt+q",
           "description": "Customize the shortcut to toggle the suggestions activation."
-        },
-        "llmCodeCompletion.openaiAPIKey": {
-          "type": "string",
-          "default": "",
-          "description": "Set the OpenAI API key to use GPT-4o-mini model."
         }
       }
     }
