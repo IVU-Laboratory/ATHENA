@@ -19,7 +19,7 @@ let proactiveCompletionListener: vscode.Disposable | undefined;  // The event li
 let InlineCompletionManager: InlineProviderManager;  // The completion provider for the inline suggestions
 let TooltipCompletionManager: TooltipProviderManager ;  // The completion provider for the tooltip suggestions 
 
-const extension_id = 'uniba.llm-code-completion';
+const extension_id = 'uniba.athena';  // Extension ID
 const settingsName = "athena";
 
 let toggle_suggestions = true;

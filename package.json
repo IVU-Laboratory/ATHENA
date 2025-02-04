@@ -54,7 +54,7 @@
     ],
     "configuration": {
       "type": "object",
-      "title": "LLM Code Completion",
+      "title": "ATHENA - Code Completion",
       "properties": {
         "athena.displayMode": {
           "type": "string",
