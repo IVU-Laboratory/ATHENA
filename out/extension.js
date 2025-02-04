@@ -42,7 +42,7 @@ let proactiveCompletionListener; // The event listener for EVERY proactive sugge
 let InlineCompletionManager; // The completion provider for the inline suggestions
 let TooltipCompletionManager; // The completion provider for the tooltip suggestions 
 const extension_id = 'uniba.llm-code-completion';
-const settingsName = "llmCodeCompletion";
+const settingsName = "athena";
 let toggle_suggestions = true;
 let currentDecorationType = null;
 let currentSuggestion = null;
@@ -50,6 +50,8 @@ let currentPosition = null;
 // Default values for settings 
 var triggerMode;
 var displayMode;
+var displayModeHybridShort;
+var displayModeHybridLong;
 var suggestionGranularity; // 1-10, indicates the granularity of the suggestion
 var includeDocumentation; // Can be true or false to include or not the documentation in the suggestion
 var inlineMaxLength = 50; // only works when displayMode="hybrid". Defines the maximum length of suggestions to be shown inline
@@ -61,9 +63,16 @@ var shortcuts = {};
 var ExtensionContext;
 var Sidepanel;
 function activate(context) {
-    console.log("Starting LLM Code completion extension");
+    console.log("Starting ATHENA Code completion extension");
     ExtensionContext = context;
-    loadSettings(); // Load settings into global variables
+    const hasRunWizard = context.globalState.get('hasRunWizard', false);
+    if (!hasRunWizard) {
+        // Run the configuration wizard
+        runConfigurationWizard();
+    }
+    else {
+        loadSettings(); // Load settings into global variables
+    }
     let envPath = path.join(context.extensionPath, '.env');
     let env_loaded = dotenv.config({ path: envPath }); // Load .env file
     if (env_loaded.error) {
@@ -71,13 +80,13 @@ function activate(context) {
     }
     /*
        // Check if it's the first run
-       const firstRunKey = 'llmCodeCompletion.firstRun';
+       const firstRunKey = 'athena.firstRun';
        const globalState = context.globalState;
        const isFirstRun = !globalState.get(firstRunKey, false);
      
        if (isFirstRun) {
         console.log("First time using the extension. Opening Settings Wizard.");
-        const conf = vscode.workspace.getConfiguration('llmCodeCompletion');
+        const conf = vscode.workspace.getConfiguration('athena');
         const defaultShortcuts = {
           toggleSuggestion: 'Ctrl+Alt+S',
           triggerSuggestion: 'Ctrl+Alt+R',
@@ -104,14 +113,14 @@ function activate(context) {
           // Mark the first run as complete
         globalState.update(firstRunKey, true);
        }
-    
-    
-      //const openSettingsCommand = vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', () => {
-       // SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
-      //});
-      //context.subscriptions.push(openSettingsCommand);
-      const settings = loadSettings();
-      registerDynamicShortcuts(context, settings.shortcuts);*/
+      */
+    /*
+     const openSettingsCommand = vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', () => {
+       SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
+     });
+     context.subscriptions.push(openSettingsCommand);
+     const settings = loadSettings();
+     //registerDynamicShortcuts(context, settings.shortcuts);*/
     // Initialize the session with GPT-4o
     let openAIapikey = getOpenAIAPIkey();
     GPT_1.GPTSessionManager.initialize(openAIapikey);
@@ -123,7 +132,7 @@ function activate(context) {
     completionText = '';
     explanationText = '';
     /* Register commands */
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.triggerSuggestion', async () => {
+    context.subscriptions.push(vscode.commands.registerCommand('athena.triggerSuggestion', async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
             const document = editor.document;
@@ -132,7 +141,7 @@ function activate(context) {
         }
     }));
     // Register the command to open the chatbot panel
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.showChatbot', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('athena.showChatbot', () => {
         const editor = vscode.window.activeTextEditor;
         var documentText = "";
         if (editor) {
@@ -140,7 +149,7 @@ function activate(context) {
         }
         ChatbotPanel_1.ChatbotPanel.createOrShow(context.extensionUri, documentText);
     }));
-    context.subscriptions.push(vscode.commands.registerCommand('llmCodeCompletion.toggleAutomaticSuggestions', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('athena.toggleAutomaticSuggestions', () => {
         if (triggerMode == settings_1.TriggerMode.Proactive) {
             disableProactiveBehavior();
             vscode.window.showInformationMessage('Automatic suggestions disabled.');
@@ -152,7 +161,7 @@ function activate(context) {
     }));
     const codeActionProvider = vscode.languages.registerCodeActionsProvider({ scheme: '*' }, // Adjust for your language
     new CustomActionProvider_1.CustomActionProvider(), { providedCodeActionKinds: CustomActionProvider_1.CustomActionProvider.providedCodeActionKinds });
-    context.subscriptions.push(codeActionProvider);
+    context.subscriptions.push(vscode.commands.registerCommand('athena.openSettingsWizard', runConfigurationWizard));
     context.subscriptions.push(vscode.commands.registerCommand('extension.explainCode', (selectedText) => {
         GPT_1.GPTSessionManager.getLLMExplanation(selectedText, "what").then(explanation => {
             showSuggestionInSideWindow("", explanation);
@@ -179,7 +188,6 @@ function activate(context) {
         });
     }));
     vscode.workspace.onDidChangeConfiguration(onConfigurationChanged); // Update settings automatically on change.
-    displayMode = settings_1.DisplayMode.SideWindow;
     //addButtonsToEditor(context); NON FUNZIONA
 }
 /* Callback used by the editor for proactive code completion */
@@ -201,10 +209,10 @@ function registerDynamicShortcuts(context, shortcuts) {
     const { toggleSuggestion, triggerSuggestion, openSettings, openChatbot } = shortcuts;
     // Register each command with its respective shortcut
     const keybindings = [
-        { command: 'llmCodeCompletion.toggleSuggestion', keybinding: toggleSuggestion },
-        { command: 'llmCodeCompletion.triggerSuggestion', keybinding: triggerSuggestion },
-        { command: 'llmCodeCompletion.openSettingsWizard', keybinding: openSettings },
-        { command: 'llmCodeCompletion.showChatbot', keybinding: openChatbot },
+        { command: 'athena.toggleSuggestion', keybinding: toggleSuggestion },
+        { command: 'athena.triggerSuggestion', keybinding: triggerSuggestion },
+        { command: 'athena.openSettingsWizard', keybinding: openSettings },
+        { command: 'athena.showChatbot', keybinding: openChatbot },
     ];
     keybindings.forEach(({ command, keybinding }) => {
         context.subscriptions.push(vscode.commands.registerCommand(command, () => {
@@ -243,15 +251,26 @@ async function triggerSuggestion(document, position) {
                 showSuggestionInSideWindow(suggestion, "");
                 break;
             case 'chatbot':
-                console.log("Showing chatbot suggestion");
                 //showSuggestionInChatbot(suggestion,contextText);
                 break;
             case 'hybrid':
                 if (suggestion.length <= inlineMaxLength) {
-                    //showInlineSuggestion(editor, suggestion, position);
+                    // Short suggestion
+                    if (displayModeHybridShort == settings_1.DisplayMode.Inline) {
+                        InlineCompletionManager.provideOnDemandSuggestion(editor, suggestion, position);
+                    }
+                    else if (displayModeHybridShort == settings_1.DisplayMode.Tooltip) {
+                        TooltipCompletionManager.provideOnDemandSuggestion(editor, suggestion, position);
+                    }
                 }
                 else {
-                    showSuggestionInSideWindow(suggestion, "");
+                    // Long suggestion
+                    if (displayModeHybridLong == settings_1.DisplayMode.SideWindow) {
+                        showSuggestionInSideWindow(suggestion, "");
+                    }
+                    else if (displayModeHybridLong == settings_1.DisplayMode.Chatbot) {
+                        showSuggestionInChatbot(suggestion, contextText);
+                    }
                 }
                 break;
         }
@@ -299,7 +318,7 @@ function handleButtonClicks() {
         if (cursorPosition.line === 0) {
             const cursorChar = cursorPosition.character;
             if (cursorChar >= firstLineRange.start.character && cursorChar <= firstLineRange.end.character + 20) {
-                vscode.commands.executeCommand('llmCodeCompletion.toggleInlineSuggestions');
+                vscode.commands.executeCommand('athena.toggleInlineSuggestions');
             }
             else if (cursorChar > firstLineRange.end.character + 20 && cursorChar <= firstLineRange.end.character + 40) {
                 SettingsWizardPanel_1.SettingsWizardPanel.createOrShow(extension_uri);
@@ -311,12 +330,17 @@ function handleButtonClicks() {
 function showSuggestionInSideWindow(suggestion, explanation) {
     ////explanationText += (explanationText ? '\n' : '') + explanation;
     //completionText += (completionText ? '\n' : '') + suggestion;
+    /*
+    if(suggestion!= ""){
+      completionText = `
+      <div class="chat-block suggestion-block">
+        <pre>${suggestion}</pre>
+      </div>
+    `;
+    }
+    */
     if (suggestion != "") {
-        completionText += `
-    <div class="chat-block suggestion-block">
-      <pre>${suggestion}</pre>
-    </div>
-  `;
+        completionText = suggestion;
     }
     if (explanation != "") {
         explanationText += `
@@ -338,6 +362,14 @@ function showSuggestionInSideWindow(suggestion, explanation) {
             case 'clearExplanation':
                 clearExplanationPanel();
                 break;
+            case 'useSuggestion':
+                focusEditorAndInsertSuggestion(message.suggestion);
+                break;
+            case 'explainSuggestion':
+                GPT_1.GPTSessionManager.getLLMExplanation(message.suggestion, "why").then(exp => {
+                    showSuggestionInSideWindow(message.suggestion, exp);
+                });
+                break;
             default:
                 console.warn(`Unknown command received: ${message.command}`);
         }
@@ -355,32 +387,10 @@ function showSuggestionInSideWindow(suggestion, explanation) {
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
-          background-color: #1e1e1e; /* Dark grey background */
-          color: #f0f0f0; /* Light text */
+          background-color: #1e1e1e;
+          color: #f0f0f0;
         }
 
-        /* Chat blocks container */
-        .chat-block {
-          margin: 10px 0;
-          padding: 10px;
-          border-radius: 5px;
-        }
-
-        /* Styling for suggestion blocks */
-        .suggestion-block {
-          background-color: #2c2c2c; /* Darker grey for suggestion blocks */
-          color: #d4d4d4; /* Softer light grey text */
-          border: 1px solid #444;
-        }
-
-        /* Styling for explanation blocks */
-        .explanation-block {
-          background-color: #3a3a3a; /* Slightly lighter grey for explanation blocks */
-          color: #f0f0f0; /* White text for better contrast */
-          border: 1px solid #555;
-        }
-
-        /* Accordion styling */
         .accordion {
           background-color: #2c2c2c;
           border: 1px solid #444;
@@ -408,75 +418,83 @@ function showSuggestionInSideWindow(suggestion, explanation) {
           background-color: #2c2c2c;
         }
         .accordion-content.expanded {
-          max-height: 300px; /* Adjust based on content size */
+          max-height: 300px;
           padding: 10px;
         }
 
-        /* Buttons */
-        button.clear-btn {
+        .code-snippet {
+          font-family: "Courier New", Courier, monospace;
+          font-size: 13px;
+          line-height: 1.6;
+          background-color: #1e1e1e;
+          border: 1px solid #444;
+          padding: 10px;
+          border-radius: 5px;
+          overflow-x: auto;
+          white-space: pre-wrap;
+          color: #d4d4d4;
+        }
+
+        button.use-btn {
           margin-top: 10px;
           padding: 5px 10px;
-          background-color: #d9534f;
+          background-color: #4CAF50; /* Green button */
           color: #ffffff;
           border: none;
           border-radius: 4px;
           cursor: pointer;
         }
-        button.clear-btn:hover {
-          background-color: #c9302c;
+        button.use-btn:hover {
+          background-color: #45a049;
+        }
+
+        button.explain-btn {
+          margin-top: 10px;
+          padding: 5px 10px;
+          background-color: #007acc; /* Blue button */
+          color: #ffffff;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        button.explain-btn:hover {
+          background-color: #005f99;
         }
       </style>
     </head>
     <body>
       <!-- Code Suggestion Panel -->
       <div class="accordion">
-        <div class="accordion-header" onclick="toggleAccordion(this)">Code Suggestion</div>
+        <div class="accordion-header">Code Suggestion</div>
         <div class="accordion-content expanded" id="suggestion-panel">
-          ${completionText}
-          <button class="clear-btn" onclick="clearSuggestion()">Clear</button>
+          <div class="code-snippet" id="suggestion-content">${completionText}</div>
+          <button class="use-btn" onclick="useSuggestion()">Use Suggestion</button>
+          <button class="explain-btn" onclick="explainSuggestion()">Explain</button>
         </div>
       </div>
 
       <!-- Explanation Panel -->
       <div class="accordion">
-        <div class="accordion-header" onclick="toggleAccordion(this)">Code Explanation</div>
+        <div class="accordion-header">Code Explanation</div>
         <div class="accordion-content expanded" id="explanation-panel">
           ${explanationText}
-          <button class="clear-btn" onclick="clearExplanation()">Clear</button>
+          <button class="use-btn" onclick="clearExplanation()">Clear</button>
         </div>
       </div>
 
       <script>
-        // Automatically expand the corresponding panel
-        function expandPanel(panelId) {
-          const panel = document.getElementById(panelId);
-          if (panel && !panel.classList.contains('expanded')) {
-            panel.classList.add('expanded');
-          }
-        }
-
-        // Automatically expand panels based on the presence of content
-        if (${JSON.stringify(completionText)}) {
-          expandPanel('suggestion-panel');
-        }
-        if (${JSON.stringify(explanationText)}) {
-          expandPanel('explanation-panel');
-        }
-
-        // Toggle the accordion
-        function toggleAccordion(header) {
-          const content = header.nextElementSibling;
-          if (content.classList.contains('expanded')) {
-            content.classList.remove('expanded');
-          } else {
-            content.classList.add('expanded');
-          }
-        }
-
-        // Clear the suggestion content
-        function clearSuggestion() {
+        // Use the provided suggestion
+        function useSuggestion() {
+          const suggestion = document.getElementById('suggestion-content').textContent;
           const vscode = acquireVsCodeApi();
-          vscode.postMessage({ command: 'clearSuggestion' });
+          vscode.postMessage({ command: 'useSuggestion', suggestion });
+        }
+
+        // Explain the provided suggestion
+        function explainSuggestion() {
+          const suggestion = document.getElementById('suggestion-content').textContent;
+          const vscode = acquireVsCodeApi();
+          vscode.postMessage({ command: 'explainSuggestion', suggestion });
         }
 
         // Clear the explanation content
@@ -488,6 +506,20 @@ function showSuggestionInSideWindow(suggestion, explanation) {
     </body>
     </html>
   `;
+}
+// Helper function to focus the editor and insert the suggestion
+function focusEditorAndInsertSuggestion(suggestion) {
+    vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup').then(() => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor found.');
+            return;
+        }
+        const selection = editor.selection;
+        editor.edit((editBuilder) => {
+            editBuilder.replace(selection, suggestion);
+        });
+    });
 }
 //functions to clear the side panel
 function clearSidePanel() {
@@ -511,10 +543,9 @@ function showSuggestionInChatbot(suggestion, contextText) {
 }
 /* ----------- Configuration related functions ------------ */
 function onConfigurationChanged(event) {
-    if (event.affectsConfiguration('llmCodeCompletion.triggerMode') || event.affectsConfiguration('llmCodeCompletion.displayMode') || event.affectsConfiguration('llmCodeCompletion.suggestionGranularity') || event.affectsConfiguration('llmCodeCompletion.includeDocumentation') || event.affectsConfiguration('llmCodeCompletion.inlineMaxLength')) {
-        console.log(`Configuration changed. \n- triggerMode changed? ${event.affectsConfiguration('llmCodeCompletion.triggerMode')} \n- displayMode changed? ${event.affectsConfiguration('llmCodeCompletion.displayMode')}`);
+    if (event.affectsConfiguration('athena')) {
+        // console.log(`Configuration changed. \n- triggerMode changed? ${event.affectsConfiguration('athena.triggerMode')} \n- displayMode changed? ${event.affectsConfiguration('athena.displayMode')}`);
         loadSettings();
-        //if (event.affectsConfiguration('llmCodeCompletion.triggerMode')) {
         if (triggerMode === settings_1.TriggerMode.Proactive) {
             enableProactiveBehavior();
         }
@@ -522,7 +553,7 @@ function onConfigurationChanged(event) {
             disableProactiveBehavior();
         }
     }
-    if (event.affectsConfiguration('llmCodeCompletion.openaiAPIKey')) {
+    if (event.affectsConfiguration('athena.openaiAPIKey')) {
         // set the openAI API key if it gets updated
         const new_api_key = getOpenAIAPIkey();
         if (new_api_key != "") {
@@ -533,7 +564,7 @@ function onConfigurationChanged(event) {
 function getOpenAIAPIkey() {
     let key = "";
     // try to fetch the API key from the configurations 
-    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+    const config = vscode.workspace.getConfiguration('athena');
     key = config.get("openaiAPIKey", "");
     if (key == "") {
         // try to fetch it from the .env file
@@ -543,18 +574,18 @@ function getOpenAIAPIkey() {
 }
 async function enableProactiveBehavior() {
     proactiveCompletionListener = vscode.workspace.onDidChangeTextDocument(onTextChanged);
-    if (displayMode === settings_1.DisplayMode.Tooltip) {
+    if (displayMode === settings_1.DisplayMode.Tooltip || (displayMode === settings_1.DisplayMode.Hybrid && displayModeHybridShort === settings_1.DisplayMode.Tooltip)) {
         // Register the completion provider for proactive tooltip display
         ExtensionContext.subscriptions.push(TooltipCompletionManager.enableProactiveBehavior());
     }
-    else if (displayMode === settings_1.DisplayMode.Inline) {
+    else if (displayMode === settings_1.DisplayMode.Inline || (displayMode === settings_1.DisplayMode.Hybrid && displayModeHybridShort === settings_1.DisplayMode.Inline)) {
         // Register the completion provider for proactive inline display
         ExtensionContext.subscriptions.push(InlineCompletionManager.enableProactiveBehavior());
     }
     // Ensure the triggerMode is updated
     if (triggerMode == settings_1.TriggerMode.OnDemand) {
         // Change the config to TriggerMode.Proactive
-        const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+        const config = vscode.workspace.getConfiguration('athena');
         await config.update('triggerMode', settings_1.TriggerMode.Proactive, vscode.ConfigurationTarget.Global);
     }
 }
@@ -566,14 +597,73 @@ async function disableProactiveBehavior() {
     // Ensure the triggerMode is updated
     if (triggerMode == settings_1.TriggerMode.Proactive) {
         // Change the config to TriggerMode.OnDemand
-        const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+        const config = vscode.workspace.getConfiguration('athena');
         await config.update('triggerMode', settings_1.TriggerMode.OnDemand, vscode.ConfigurationTarget.Global);
     }
 }
+async function runConfigurationWizard() {
+    const context = ExtensionContext;
+    // Ask the user their programming level
+    const programmingLevels = ['Beginner', 'Intermediate', 'Advanced'];
+    let programmingLevel = await vscode.window.showQuickPick(programmingLevels, {
+        placeHolder: 'ATHENA Code Completion extension configuration: Select your programming level...',
+    });
+    programmingLevel = programmingLevel?.toLowerCase();
+    if (!programmingLevel) {
+        // User canceled the wizard
+        vscode.window.showInformationMessage('Setup canceled.');
+        return;
+    }
+    // Update the default settings based on the chosen experience level
+    setDefaultSettings(programmingLevel);
+    // Show the editable settings
+    /*vscode.window.showInformationMessage(
+      `So you are ${programmingLevel == "beginner" ? "a" : "an"} ${programmingLevel} programmer. You can now customize your experience with the ATHENA code completion extension.`
+    );*/
+    vscode.commands.executeCommand('workbench.action.openSettings', 'athena'); // Open the extension's settings panel
+    // Mark the wizard as completed
+    context.globalState.update('hasRunWizard', true);
+}
+async function setDefaultSettings(programmingLevel) {
+    switch (programmingLevel) {
+        case 'beginner':
+            triggerMode = settings_1.TriggerMode.Proactive;
+            displayMode = settings_1.DisplayMode.Inline;
+            includeDocumentation = true;
+            suggestionGranularity = 5;
+            break;
+        case 'intermediate':
+            triggerMode = settings_1.TriggerMode.OnDemand;
+            displayMode = settings_1.DisplayMode.Hybrid;
+            displayModeHybridShort = settings_1.DisplayMode.Inline;
+            displayModeHybridLong = settings_1.DisplayMode.SideWindow;
+            suggestionGranularity = 5;
+            includeDocumentation = true;
+            break;
+        case 'advanced':
+            triggerMode = settings_1.TriggerMode.OnDemand;
+            displayMode = settings_1.DisplayMode.Hybrid;
+            displayModeHybridShort = settings_1.DisplayMode.Tooltip;
+            displayModeHybridLong = settings_1.DisplayMode.SideWindow;
+            suggestionGranularity = 5;
+            includeDocumentation = false;
+            break;
+    }
+    // Update settings with default values
+    const config = vscode.workspace.getConfiguration('athena');
+    await config.update('triggerMode', triggerMode, vscode.ConfigurationTarget.Global);
+    await config.update('displayMode', displayMode, vscode.ConfigurationTarget.Global);
+    await config.update('hybridModeShortSuggestions', displayModeHybridShort, vscode.ConfigurationTarget.Global);
+    await config.update('hybridModeLongSuggestions', displayModeHybridLong, vscode.ConfigurationTarget.Global);
+    await config.update('suggestionGranularity', suggestionGranularity, vscode.ConfigurationTarget.Global);
+    await config.update('includeDocumentation', includeDocumentation, vscode.ConfigurationTarget.Global);
+}
 function loadSettings() {
     // Automatically update global parameters from settings
-    const config = vscode.workspace.getConfiguration('llmCodeCompletion');
+    const config = vscode.workspace.getConfiguration('athena');
     triggerMode = config.get('triggerMode', settings_1.TriggerMode.OnDemand);
+    displayModeHybridShort = config.get('hybridModeShortSuggestions', settings_1.DisplayMode.Inline);
+    displayModeHybridLong = config.get('hybridModeLongSuggestions', settings_1.DisplayMode.SideWindow);
     displayMode = config.get('displayMode', settings_1.DisplayMode.Inline);
     suggestionGranularity = config.get('suggestionGranularity', 5); // Default is 5
     includeDocumentation = config.get('includeDocumentation', false); // Default is false
@@ -585,6 +675,8 @@ function loadSettings() {
         openChatbot: config.get('shortcuts.openChatbot', 'ctrl+alt+p'),
     };
     console.log(`Settings loaded:\nDisplay mode = ${displayMode}\nTrigger mode = ${triggerMode}\nSuggestion granularity = ${suggestionGranularity}\n`);
+    // Dynamically shows/hides the hybrid parameters
+    vscode.commands.executeCommand('setContext', 'athena.showHybridConfigs', displayMode === settings_1.DisplayMode.Hybrid); //TODO: does not work
     return { displayMode, triggerMode, suggestionGranularity, includeDocumentation, shortcuts };
 }
 //# sourceMappingURL=extension.js.map

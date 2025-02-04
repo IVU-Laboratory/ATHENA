@@ -52,176 +52,173 @@ export class SettingsWizardPanel {
     
     return `
       <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Completion Settings</title>
-        <script nonce="${nonce}">
-          const vscode = acquireVsCodeApi();
-            window.addEventListener('message', (event) => {
-                const message = event.data;
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Completion Settings</title>
+  <script nonce="${nonce}">
+    const vscode = acquireVsCodeApi();
+    window.addEventListener('message', (event) => {
+      const message = event.data;
+      if (message.type === 'initialize') {
+        document.getElementById('displayMode').value = message.displayMode;
+        document.getElementById('triggerMode').value = message.triggerMode;
+        document.getElementById('suggestionGranularity').value = message.suggestionGranularity;
+        document.getElementById('includeDocumentation').checked = message.includeDocumentation;
+        document.getElementById('commentsGranularity').value = message.commentsGranularity;
+        updateSliderValue(message.suggestionGranularity, 'sliderValue');
+        updateSliderValue(message.commentsGranularity, 'commentsSliderValue');
+      }
+    });
 
-                if (message.type === 'initialize') {
-                    document.getElementById('displayMode').value = message.displayMode;
-                    document.getElementById('triggerMode').value = message.triggerMode;
-                    document.getElementById('suggestionGranularity').value = message.suggestionGranularity;
-                    document.getElementById('includeDocumentation').checked = message.includeDocumentation;
-                }
-            });
+    function updateSliderValue(value, targetId) {
+      document.getElementById(targetId).textContent = value;
+    }
 
-          function updateSliderValue(value) {
-          document.getElementById('sliderValue').textContent = value;
-          }
+    function saveSettings() {
+      const settings = {
+        displayMode: document.getElementById('displayMode').value,
+        triggerMode: document.getElementById('triggerMode').value,
+        suggestionGranularity: document.getElementById('suggestionGranularity').value,
+        includeDocumentation: document.getElementById('includeDocumentation').checked,
+        commentsGranularity: document.getElementById('commentsGranularity').value,
+        shortcuts: {
+          toggleSuggestion: document.getElementById('shortcutToggle').value,
+          triggerSuggestion: document.getElementById('shortcutTrigger').value,
+          openSettings: document.getElementById('shortcutSettings').value,
+          openChatbot: document.getElementById('shortcutChatbot').value,
+        },
+      };
 
-          function saveSettings() {
-  const settings = {
-    displayMode: document.getElementById('displayMode').value,
-    triggerMode: document.getElementById('triggerMode').value,
-    suggestionGranularity: document.getElementById('suggestionGranularity').value,
-    includeDocumentation: document.getElementById('includeDocumentation').checked,
-    shortcuts: {
-      toggleSuggestion: document.getElementById('shortcutToggle').value,
-      triggerSuggestion: document.getElementById('shortcutTrigger').value,
-      openSettings: document.getElementById('shortcutSettings').value,
-      openChatbot: document.getElementById('shortcutChatbot').value,
-    },
-  };
+      vscode.postMessage({ type: 'save', ...settings });
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 5px 20px;
+      background-color: #1c1f26; /* Darker background */
+      color: #e8e8e8; /* Light text for readability */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-  vscode.postMessage({ type: 'save', ...settings });
-}
+    h1 {
+      font-size: 1.8em;
+      margin-bottom: 20px;
+      color: #f4f4f4; /* Neutral white for headings */
+      text-align: center;
+    }
 
-        
+    form {
+      width: 100%;
+      max-width: 700px;
+      background-color: #252a33; /* Contrast against the background */
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
 
-        </script>
-        <style>
+    .settings-group {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: #2e3440; /* Dark grey for panels */
+      border-radius: 6px;
+    }
 
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  font-size: 13px;
-  padding: 10px;
-  background-color: #F8F8FF;
-  color: #333;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+    .settings-group h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #f4f4f4; /* Neutral white */
+      background-color: #3b4252; /* Distinct dark blue-grey */
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 1.2em;
+    }
 
-h1 {
-  color: #fff; /* Bright header color */
-  margin-bottom: 20px;
-  font-size: 2em;
-  text-align: center;
-}
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #e8e8e8;
+    }
 
-form {
-  width: 100%;
-  max-width: 600px;
-}
+    select, input[type="checkbox"], input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #888;
+      border-radius: 4px;
+      font-size: 13px;
+      box-sizing: border-box;
+      background-color: #434c5e;
+      color: #e8e8e8;
+    }
 
-.settings-group {
-  background: #fff;
-  padding: 20px;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
+    input[type="range"] {
+      width: 100%;
+      margin-bottom: 10px;
+    }
 
-.settings-group h2 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  color: #fff;
-  background-color: #4444aa; /* Stylish header background */
-  padding: 10px 15px;
-  border-radius: 5px;
-  font-size: 1.2em;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-}
+    .slider-value {
+      text-align: right;
+      font-size: 1em;
+      margin-bottom: 10px;
+      color: #88c0d0; /* Soft teal for emphasis */
+    }
 
-label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: bold;
-}
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      color: white;
+      background-color: #5e81ac; /* Muted blue for primary action */
+      transition: background-color 0.3s;
+    }
 
-select, input[type="checkbox"], input[type="text"] {
-   width: 100%;
-  padding: 10px;
-  margin-bottom: 20px;
-  border: 1px solid #555; /* Subtle border for inputs */
-  border-radius: 4px;
-  font-size: 13px;
-  color: dark-gray; /* Light text inside inputs */
-  box-sizing: border-box;
-}
-
-input[type="text"]:focus, 
-select:focus {
-  outline: none;
-  border-color: #8888ff; /* Highlight border on focus */
-}
-  
-.slider-container {
-  margin-bottom: 20px;
-}
-
-.slider-container input[type="range"] {
-  width: 100%;
-}
-
-.slider-value {
-  text-align: center;
-  font-size: 1.2em;
-  margin-top: 5px;
-  color: #444;
-}
-
-button {
-   background-color: #4CAF50;
-  color: white;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  width: 100%;
-  transition: background-color 0.3s ease-in-out;
-}
-
-button:hover {
-  background-color: #45a049;
-}
-</style>
-              </head>
-      <body>
+    button:hover {
+      background-color: #4c70a4;
+    }
+  </style>
+</head>
+<body>
   <form>
     <!-- General Settings Section -->
     <div class="settings-group">
       <h2>General Settings</h2>
-      <label for="displayMode">Completion mode:</label>
+      <label for="displayMode">Completion Mode:</label>
       <select id="displayMode">
         <option value="tooltip">Tooltip</option>
         <option value="inline">Inline</option>
         <option value="sideWindow">Side Window</option>
-        <option value="chatbot">Chatbot</option>
         <option value="hybrid">Hybrid</option>
       </select>
 
-      <label for="triggerMode">Completion trigger:</label>
+      <label for="triggerMode">Completion Trigger:</label>
       <select id="triggerMode">
         <option value="proactive">Proactive</option>
         <option value="onDemand">Manual</option>
       </select>
 
       <div class="slider-container">
-        <label for="suggestionGranularity">Suggestion length (1-5):</label>
-        <input type="range" id="suggestionGranularity" min="1" max="5" value="5" oninput="updateSliderValue(this.value)" />
+        <label for="suggestionGranularity">Suggestion Length (1-5):</label>
+        <input type="range" id="suggestionGranularity" min="1" max="5" value="5" oninput="updateSliderValue(this.value, 'sliderValue')" />
         <div class="slider-value" id="sliderValue">5</div>
       </div>
 
-      <label for="includeDocumentation">Provide source of completion:</label>
+      <div class="slider-container">
+        <label for="commentsGranularity">Comments Granularity (0-3):</label>
+        <input type="range" id="commentsGranularity" min="0" max="3" value="0" oninput="updateSliderValue(this.value, 'commentsSliderValue')" />
+        <div class="slider-value" id="commentsSliderValue">0</div>
+      </div>
+
+      <label for="includeDocumentation">Provide Source of Completion:</label>
       <input type="checkbox" id="includeDocumentation" />
     </div>
 
@@ -243,8 +240,9 @@ button:hover {
 
     <button type="button" onclick="saveSettings()">Save Settings</button>
   </form>
-      </body>
-      </html>`;
+</body>
+</html>
+`;
   }
   
 

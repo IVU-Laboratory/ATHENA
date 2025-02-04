@@ -62,7 +62,6 @@
             "inline",
             "tooltip",
             "sideWindow",
-            "chatbot",
             "hybrid"
           ],
           "default": "sideWindow",
@@ -71,7 +70,6 @@
             "Inline: Show code suggestions inline, next to your code.",
             "Tooltip: Show code suggestions in a popup window near your cursor.",
             "Side Window: Show code suggestions in a minimal side window.",
-            "Chatbot: Show code suggestions within an interactive chatbot in a side window.",
             "Hybrid: Choose how to show code suggestions depending on their length."
           ]
         },
@@ -89,20 +87,6 @@
             "Tooltip: Show short code suggestions in a popup window near your cursor."
           ]
         },
-        "athena.hybridModeLongSuggestions": {
-          "type": "string",
-          "enum": [
-            "sideWindow",
-            "chatbot"
-          ],
-          "default": "sideWindow",
-          "description": "Only works when Display Mode is set to 'hybrid' - Choose how to display long code suggestions.",
-          "when": "athena.showHybridConfigs",
-          "markdownEnumDescriptions": [
-            "Side Window: Show long code suggestions in a minimal side window.",
-            "Chatbot: Show long code suggestions within an interactive chatbot in a side window."
-          ]
-        },
         "athena.triggerMode": {
           "type": "string",
           "enum": [
@@ -114,13 +98,18 @@
         },
         "athena.suggestionGranularity": {
           "type": "number",
-          "enum": [ 1, 2, 3, 4, 5 ],
-          "default": 3,
-          "description": "Adjust the granularity of code suggestions (min. 1, max. 5)."
+          "default": 5,
+          "description": "Adjust the granularity of code suggestions (min. 1, max. 10).",
+          "enum": [ 1, 2, 3,4,5,6,7,8,9,10]
         },
         "athena.commentFrequency": {
           "type": "number",
-          "enum": [ 0, 1, 2, 3],
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ],
           "default": 1,
           "description": "Adjust the frequency of comments in the generated code (min. 0, max. 3)."
         },
@@ -129,30 +118,30 @@
           "default": false,
           "description": "Include documentation references in suggestions."
         },
-        "athena.invokeChatbotShortcut": {
-          "type": "string",
-          "default": "ctrl+alt+p",
-          "description": "Customize the shortcut to open the chatbot."
-        },
-        "athena.openSettingsWizardShortcut": {
-          "type": "string",
-          "default": "ctrl+alt+t",
-          "description": "Customize the shortcut to open the settings."
-        },
-        "athena.triggerSuggestionShortcut": {
-          "type": "string",
-          "default": "ctrl+alt+s",
-          "description": "Customize the shortcut for triggering suggestions."
-        },
-        "athena.toggleSuggestionsShortcut": {
-          "type": "string",
-          "default": "ctrl+alt+q",
-          "description": "Customize the shortcut to toggle the suggestions activation."
-        },
         "athena.openaiAPIKey": {
           "type": "string",
           "default": "",
           "description": "Set the OpenAI API key to use GPT-4o-mini model."
+        },
+        "athena.shortcutInvokeChatbot": {
+          "type": "string",
+          "default": "ctrl+alt+p",
+          "description": "Customize the shortcut to open the chatbot."
+        },
+        "athena.shortcutOpenSettings": {
+          "type": "string",
+          "default": "ctrl+alt+t",
+          "description": "Customize the shortcut to open the settings."
+        },
+        "athena.shortcutTriggerSuggestion": {
+          "type": "string",
+          "default": "ctrl+alt+s",
+          "description": "Customize the shortcut for triggering suggestions."
+        },
+        "athena.shortcutToggleSuggestions": {
+          "type": "string",
+          "default": "ctrl+alt+q",
+          "description": "Customize the shortcut to toggle the suggestions activation."
         }
       }
     }
