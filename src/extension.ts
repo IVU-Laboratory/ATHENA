@@ -99,14 +99,14 @@ export function activate(context: vscode.ExtensionContext) {
       // Mark the first run as complete
     globalState.update(firstRunKey, true);
    }
-
-
-  //const openSettingsCommand = vscode.commands.registerCommand('athena.openSettingsWizard', () => {
-   // SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
-  //});
-  //context.subscriptions.push(openSettingsCommand);
+  */
+ /*
+  const openSettingsCommand = vscode.commands.registerCommand('llmCodeCompletion.openSettingsWizard', () => {
+    SettingsWizardPanel.createOrShow(context.extensionUri); // Open the settings wizard
+  });
+  context.subscriptions.push(openSettingsCommand);
   const settings = loadSettings();
-  registerDynamicShortcuts(context, settings.shortcuts);*/
+  //registerDynamicShortcuts(context, settings.shortcuts);*/
   // Initialize the session with GPT-4o
 
   let openAIapikey = getOpenAIAPIkey();
@@ -375,15 +375,18 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
 
   ////explanationText += (explanationText ? '\n' : '') + explanation;
   //completionText += (completionText ? '\n' : '') + suggestion;
-
+  /*
   if(suggestion!= ""){
-    completionText += `
+    completionText = `
     <div class="chat-block suggestion-block">
       <pre>${suggestion}</pre>
     </div>
   `;
   }
-  
+  */
+  if(suggestion!=""){
+    completionText = suggestion;
+  }
 
   if(explanation!=""){
     explanationText += `
@@ -412,10 +415,20 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
       case 'clearExplanation':
         clearExplanationPanel(); 
         break;
+      case 'useSuggestion':
+            focusEditorAndInsertSuggestion(message.suggestion);
+        break;
+      case 'explainSuggestion':
+        GPTSessionManager.getLLMExplanation(message.suggestion,"why").then(exp =>{
+          showSuggestionInSideWindow(message.suggestion, exp);
+        });        
+        break;
       default:
         console.warn(`Unknown command received: ${message.command}`);
     }
   });
+
+  
 
 
  // Sidepanel.webview.html = `<html><body><pre style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
@@ -431,32 +444,10 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
-          background-color: #1e1e1e; /* Dark grey background */
-          color: #f0f0f0; /* Light text */
+          background-color: #1e1e1e;
+          color: #f0f0f0;
         }
 
-        /* Chat blocks container */
-        .chat-block {
-          margin: 10px 0;
-          padding: 10px;
-          border-radius: 5px;
-        }
-
-        /* Styling for suggestion blocks */
-        .suggestion-block {
-          background-color: #2c2c2c; /* Darker grey for suggestion blocks */
-          color: #d4d4d4; /* Softer light grey text */
-          border: 1px solid #444;
-        }
-
-        /* Styling for explanation blocks */
-        .explanation-block {
-          background-color: #3a3a3a; /* Slightly lighter grey for explanation blocks */
-          color: #f0f0f0; /* White text for better contrast */
-          border: 1px solid #555;
-        }
-
-        /* Accordion styling */
         .accordion {
           background-color: #2c2c2c;
           border: 1px solid #444;
@@ -484,75 +475,83 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
           background-color: #2c2c2c;
         }
         .accordion-content.expanded {
-          max-height: 300px; /* Adjust based on content size */
+          max-height: 300px;
           padding: 10px;
         }
 
-        /* Buttons */
-        button.clear-btn {
+        .code-snippet {
+          font-family: "Courier New", Courier, monospace;
+          font-size: 13px;
+          line-height: 1.6;
+          background-color: #1e1e1e;
+          border: 1px solid #444;
+          padding: 10px;
+          border-radius: 5px;
+          overflow-x: auto;
+          white-space: pre-wrap;
+          color: #d4d4d4;
+        }
+
+        button.use-btn {
           margin-top: 10px;
           padding: 5px 10px;
-          background-color: #d9534f;
+          background-color: #4CAF50; /* Green button */
           color: #ffffff;
           border: none;
           border-radius: 4px;
           cursor: pointer;
         }
-        button.clear-btn:hover {
-          background-color: #c9302c;
+        button.use-btn:hover {
+          background-color: #45a049;
+        }
+
+        button.explain-btn {
+          margin-top: 10px;
+          padding: 5px 10px;
+          background-color: #007acc; /* Blue button */
+          color: #ffffff;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        button.explain-btn:hover {
+          background-color: #005f99;
         }
       </style>
     </head>
     <body>
       <!-- Code Suggestion Panel -->
       <div class="accordion">
-        <div class="accordion-header" onclick="toggleAccordion(this)">Code Suggestion</div>
+        <div class="accordion-header">Code Suggestion</div>
         <div class="accordion-content expanded" id="suggestion-panel">
-          ${completionText}
-          <button class="clear-btn" onclick="clearSuggestion()">Clear</button>
+          <div class="code-snippet" id="suggestion-content">${completionText}</div>
+          <button class="use-btn" onclick="useSuggestion()">Use Suggestion</button>
+          <button class="explain-btn" onclick="explainSuggestion()">Explain</button>
         </div>
       </div>
 
       <!-- Explanation Panel -->
       <div class="accordion">
-        <div class="accordion-header" onclick="toggleAccordion(this)">Code Explanation</div>
+        <div class="accordion-header">Code Explanation</div>
         <div class="accordion-content expanded" id="explanation-panel">
           ${explanationText}
-          <button class="clear-btn" onclick="clearExplanation()">Clear</button>
+          <button class="use-btn" onclick="clearExplanation()">Clear</button>
         </div>
       </div>
 
       <script>
-        // Automatically expand the corresponding panel
-        function expandPanel(panelId) {
-          const panel = document.getElementById(panelId);
-          if (panel && !panel.classList.contains('expanded')) {
-            panel.classList.add('expanded');
-          }
-        }
-
-        // Automatically expand panels based on the presence of content
-        if (${JSON.stringify(completionText)}) {
-          expandPanel('suggestion-panel');
-        }
-        if (${JSON.stringify(explanationText)}) {
-          expandPanel('explanation-panel');
-        }
-
-        // Toggle the accordion
-        function toggleAccordion(header) {
-          const content = header.nextElementSibling;
-          if (content.classList.contains('expanded')) {
-            content.classList.remove('expanded');
-          } else {
-            content.classList.add('expanded');
-          }
-        }
-
-        // Clear the suggestion content
-        function clearSuggestion() {
+        // Use the provided suggestion
+        function useSuggestion() {
+          const suggestion = document.getElementById('suggestion-content').textContent;
           const vscode = acquireVsCodeApi();
-          vscode.postMessage({ command: 'clearSuggestion' });
+          vscode.postMessage({ command: 'useSuggestion', suggestion });
+        }
+
+        // Explain the provided suggestion
+        function explainSuggestion() {
+          const suggestion = document.getElementById('suggestion-content').textContent;
+          const vscode = acquireVsCodeApi();
+          vscode.postMessage({ command: 'explainSuggestion', suggestion });
         }
 
         // Clear the explanation content
@@ -566,6 +565,21 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
   `;
 }
 
+// Helper function to focus the editor and insert the suggestion
+function focusEditorAndInsertSuggestion(suggestion: string) {
+  vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup').then(() => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showErrorMessage('No active editor found.');
+      return;
+    }
+
+    const selection = editor.selection;
+    editor.edit((editBuilder) => {
+      editBuilder.replace(selection, suggestion);
+    });
+  });
+}
 //functions to clear the side panel
 function clearSidePanel(){
   completionText = '';
@@ -693,7 +707,7 @@ async function setDefaultSettings(programmingLevel: string) {
   switch(programmingLevel){
     case 'beginner':
       triggerMode = TriggerMode.Proactive;
-      displayMode = DisplayMode.Chatbot;
+      displayMode = DisplayMode.Inline;
       includeDocumentation = true;
       suggestionGranularity = 5;
       break;
@@ -701,7 +715,7 @@ async function setDefaultSettings(programmingLevel: string) {
       triggerMode = TriggerMode.OnDemand;
       displayMode = DisplayMode.Hybrid;
       displayModeHybridShort = DisplayMode.Inline;
-      displayModeHybridLong = DisplayMode.Chatbot;
+      displayModeHybridLong = DisplayMode.SideWindow;
       suggestionGranularity = 5;
       includeDocumentation = true;
       break;
