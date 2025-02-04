@@ -26,8 +26,7 @@ export class GPTSessionManager {
     if (this.apiKey == "") {
       return "Set an OpenAI API key within the settings!";
     }    
-    //return "Explanation: This is a very very very veeeeeeeeeeeeeeeeeeeeeeeeeeeery looooooooooooooooooooooooooooong explanation!!!!"
-
+    // [DEBUG] return "Explanation: This is a very very very veeeeeeeeeeeeeeeeeeeeeeeeeeeery looooooooooooooooooooooooooooong explanation!!!!"
     let prompt = ``;
     switch (type) {
       case "why":
