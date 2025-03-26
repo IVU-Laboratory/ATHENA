@@ -4,9 +4,9 @@ import * as vscode from 'vscode';
 import { getUri } from "./utilities/getUri";
 import { getNonce } from "./utilities/getNonce";
 import axios from 'axios';
+import { GPTSessionManager } from './GPT';
 
 export class ChatbotPanel {
-  private apiKey = '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'; 
   private contextText: string = '';
   public static currentPanel: ChatbotPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
@@ -73,12 +73,11 @@ export class ChatbotPanel {
     // Method to handle the user's message from the webview
     private async handleUserMessage(text: string) {
        
-      
       const question = text;
       // Send a response back to the webview
       this._panel.webview.postMessage({ text: question, type: "user" });
 
-      const response = await this.requestGPT4(question + "\nContext code for the response:\n"+this.contextText);
+      const response = await GPTSessionManager.chatbotRequest(question + "\nContext code for the response:\n"+this.contextText);
       this._panel.webview.postMessage({ text: response, type: "assistant" });
 
     }
@@ -111,35 +110,6 @@ export class ChatbotPanel {
 			</span>
 		</body>
 		</html>`;
-  }
-
-  private async requestGPT4(prompt: string): Promise<string> {
-    try {
-      const response = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
-        {
-          model: 'gpt-4-turbo',
-          messages: [
-            { role: 'system', content: 'You are an assistant for programmers.' },
-            { role: 'user', content: prompt },
-          ],
-          max_tokens: 100,
-          temperature: 0.7,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-        }
-      );
-  
-      console.log(response.data.choices[0].message.content);
-      return response.data.choices[0].message.content;
-    } catch (error) {
-      console.error('Error communicating with GPT-4:', error);
-      return '';
-    }
   }
 
 }

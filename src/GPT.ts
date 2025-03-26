@@ -17,7 +17,7 @@ export class GPTSessionManager {
       this.conversationHistory.push({ role: "system", content: initialPrompt });
       this.sessionContext = initialPrompt;
 
-      const explanationPrompt = 'Your task is to explain the code provided by the user. The explanation must be very short.'
+      const explanationPrompt = 'Your task is to very briefly explain the code provided by the user using one single sentence.'
       this.explanationHistory.push({role: "system", content: explanationPrompt});
 
   }
@@ -26,7 +26,7 @@ export class GPTSessionManager {
     if (this.apiKey == "") {
       return "Set an OpenAI API key within the settings!";
     }    
-    // [DEBUG] return "Explanation: This is a very very very veeeeeeeeeeeeeeeeeeeeeeeeeeeery looooooooooooooooooooooooooooong explanation!!!!"
+    // DEBUG return "Explanation: This is a very very very veeeeeeeeeeeeeeeeeeeeeeeeeeeery looooooooooooooooooooooooooooong explanation!!!!"
     let prompt = ``;
     switch (type) {
       case "why":
@@ -149,6 +149,36 @@ export class GPTSessionManager {
     // If the input doesn't match the format, return it as is
     return code.trim();
   }
+
+  
+    public static async chatbotRequest(prompt: string): Promise<string> {
+      try {
+        const response = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: 'You are an assistant for developers. You must answer with text only (no markdown) and be very concise in your answers.' },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 50,
+            temperature: 0.7,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.apiKey}`,
+            },
+          }
+        );
+    
+        console.log(response.data.choices[0].message.content);
+        return response.data.choices[0].message.content;
+      } catch (error) {
+        console.error('Error communicating with GPT-4o:', error);
+        return '';
+      }
+    }
 
 }
 

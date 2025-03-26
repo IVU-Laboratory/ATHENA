@@ -13,13 +13,14 @@ import * as path from 'path';
 
 let typingTimeout: NodeJS.Timeout | undefined;
 let chatbotProvider: ChatbotPanel;
+let lastActiveEditor: vscode.TextEditor | undefined;
 
 let proactiveCompletionListener: vscode.Disposable | undefined;  // The event listener for EVERY proactive suggestion method
 
 let InlineCompletionManager: InlineProviderManager;  // The completion provider for the inline suggestions
 let TooltipCompletionManager: TooltipProviderManager ;  // The completion provider for the tooltip suggestions 
 
-const extension_id = 'uniba.athena';  // Extension ID
+const extension_id = 'uniba.llm-code-completion';
 const settingsName = "athena";
 
 let toggle_suggestions = true;
@@ -203,7 +204,8 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   
-  
+  //temporaneo
+
 
   vscode.workspace.onDidChangeConfiguration(onConfigurationChanged);  // Update settings automatically on change.
   //addButtonsToEditor(context); NON FUNZIONA
@@ -266,6 +268,7 @@ async function triggerSuggestion(document: vscode.TextDocument, position: vscode
 
   const editor = vscode.window.activeTextEditor;
   if (editor) {
+    lastActiveEditor = editor;
     switch (displayMode) {
       case 'tooltip':  // this should only be called when the user asks for a suggestion (not proactively - for that, there is the completionProvider)
         if (triggerMode != TriggerMode.Proactive) {
@@ -396,7 +399,7 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
   `;
   }
 
-  if (Sidepanel == null) {
+  if (Sidepanel == undefined) {
     Sidepanel = vscode.window.createWebviewPanel(
       'codeSuggestion',
       'Code Suggestion',
@@ -419,6 +422,8 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
             focusEditorAndInsertSuggestion(message.suggestion);
         break;
       case 'explainSuggestion':
+        //vscode.window.showErrorMessage('Got here.');
+        clearExplanationPanel();
         GPTSessionManager.getLLMExplanation(message.suggestion,"why").then(exp =>{
           showSuggestionInSideWindow(message.suggestion, exp);
         });        
@@ -428,11 +433,8 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
     }
   });
 
-  
-
-
- // Sidepanel.webview.html = `<html><body><pre style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
- Sidepanel.webview.html = `
+  // Sidepanel.webview.html = `<html><body><pre style="text-wrap: wrap;">${suggestion}</pre></body></html>`;
+  Sidepanel.webview.html = `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -567,19 +569,33 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
 
 // Helper function to focus the editor and insert the suggestion
 function focusEditorAndInsertSuggestion(suggestion: string) {
-  vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup').then(() => {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      vscode.window.showErrorMessage('No active editor found.');
-      return;
+  let editor = lastActiveEditor || vscode.window.activeTextEditor;
+  
+  // If still not available, fallback to the first visible editor.
+  if (!editor) {
+    const editors = vscode.window.visibleTextEditors;
+    if (editors && editors.length > 0) {
+      editor = editors[0];
+      vscode.window.showTextDocument(editor.document, editor.viewColumn);
     }
-
-    const selection = editor.selection;
+  }
+  
+  if (!editor) {
+    vscode.window.showErrorMessage('No active editor found.');
+    return;
+  }
+  
+  // Bring focus back to the editor group and then insert the suggestion.
+  vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup').then(() => {
     editor.edit((editBuilder) => {
-      editBuilder.replace(selection, suggestion);
+      editBuilder.replace(editor.selection, suggestion);
     });
   });
 }
+
+    
+
+   
 //functions to clear the side panel
 function clearSidePanel(){
   completionText = '';
