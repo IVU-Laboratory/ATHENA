@@ -442,102 +442,212 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Code Suggestions</title>
       <style>
-        body {
-          font-family: Arial, sans-serif;
+        * {
           margin: 0;
           padding: 0;
-          background-color: #1e1e1e;
-          color: #f0f0f0;
+          box-sizing: border-box;
+        }
+
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+          background: linear-gradient(135deg, #1e1e1e 0%, #252526 100%);
+          color: #e0e0e0;
+          padding: 16px;
+          min-height: 100vh;
+        }
+
+        .panel-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
         }
 
         .accordion {
-          background-color: #2c2c2c;
-          border: 1px solid #444;
-          border-radius: 5px;
-          margin: 0;
+          background-color: #2d2d30;
+          border: 1px solid #3e3e42;
+          border-radius: 6px;
+          overflow: hidden;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          transition: all 0.3s ease;
+        }
+
+        .accordion:hover {
+          border-color: #007acc;
+          box-shadow: 0 4px 12px rgba(0, 122, 204, 0.2);
         }
 
         .accordion-header {
-          padding: 10px;
+          padding: 14px 16px;
           cursor: pointer;
-          font-weight: bold;
+          font-weight: 600;
           color: #ffffff;
-          background-color: #3a3a3a;
-          border-bottom: 1px solid #555;
+          background: linear-gradient(90deg, #3a3a3d 0%, #2d2d30 100%);
+          border-bottom: 1px solid #3e3e42;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          user-select: none;
+          transition: background 0.2s ease;
         }
+
         .accordion-header:hover {
-          background-color: #444;
+          background: linear-gradient(90deg, #454549 0%, #3a3a3d 100%);
+        }
+
+        .accordion-header::after {
+          content: '▼';
+          font-size: 12px;
+          transition: transform 0.3s ease;
+          color: #007acc;
+        }
+
+        .accordion-header.collapsed::after {
+          transform: rotate(-90deg);
         }
 
         .accordion-content {
           max-height: 0;
           overflow: hidden;
           transition: max-height 0.3s ease-out;
-          padding: 0 10px;
-          background-color: #2c2c2c;
+          background-color: #1e1e1e;
         }
+
         .accordion-content.expanded {
-          max-height: 300px;
-          padding: 10px;
+          max-height: 500px;
+          padding: 16px;
         }
 
         .code-snippet {
-          font-family: "Courier New", Courier, monospace;
-          font-size: 13px;
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 12px;
           line-height: 1.6;
-          background-color: #1e1e1e;
+          background-color: #1a1a1a;
           border: 1px solid #444;
-          padding: 10px;
-          border-radius: 5px;
+          padding: 12px;
+          border-radius: 4px;
           overflow-x: auto;
           white-space: pre-wrap;
+          word-break: break-word;
+          color: #ce9178;
+          margin-bottom: 12px;
+          box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .explanation-content {
           color: #d4d4d4;
+          line-height: 1.6;
+          margin-bottom: 12px;
+          padding: 12px;
+          background-color: #1a1a1a;
+          border-left: 3px solid #007acc;
+          border-radius: 2px;
         }
 
-        button.use-btn {
-          margin-top: 10px;
-          padding: 5px 10px;
-          background-color: #4CAF50; /* Green button */
-          color: #ffffff;
+        .button-group {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        button {
+          flex: 1;
+          min-width: 120px;
+          padding: 10px 14px;
           border: none;
           border-radius: 4px;
           cursor: pointer;
-        }
-        button.use-btn:hover {
-          background-color: #45a049;
+          font-size: 12px;
+          font-weight: 600;
+          transition: all 0.2s ease;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
 
-        button.explain-btn {
-          margin-top: 10px;
-          padding: 5px 10px;
-          background-color: #007acc; /* Blue button */
+        .use-btn {
+          background-color: #007acc;
           color: #ffffff;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
         }
-        button.explain-btn:hover {
+
+        .use-btn:hover {
           background-color: #005f99;
+          box-shadow: 0 2px 8px rgba(0, 122, 204, 0.4);
+          transform: translateY(-1px);
+        }
+
+        .use-btn:active {
+          transform: translateY(0);
+        }
+
+        .explain-btn {
+          background-color: #4caf50;
+          color: #ffffff;
+        }
+
+        .explain-btn:hover {
+          background-color: #45a049;
+          box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+          transform: translateY(-1px);
+        }
+
+        .explain-btn:active {
+          transform: translateY(0);
+        }
+
+        .clear-btn {
+          background-color: #f44747;
+          color: #ffffff;
+        }
+
+        .clear-btn:hover {
+          background-color: #d32f2f;
+          box-shadow: 0 2px 8px rgba(244, 71, 71, 0.4);
+          transform: translateY(-1px);
+        }
+
+        .clear-btn:active {
+          transform: translateY(0);
+        }
+
+        .empty-state {
+          text-align: center;
+          color: #6a6a6a;
+          padding: 24px 12px;
+          font-size: 13px;
+          font-style: italic;
+        }
+
+        .accordion.empty .accordion-content.expanded {
+          max-height: 100px;
         }
       </style>
     </head>
     <body>
-      <!-- Code Suggestion Panel -->
-      <div class="accordion">
-        <div class="accordion-header">Code Suggestion</div>
-        <div class="accordion-content expanded" id="suggestion-panel">
-          <div class="code-snippet" id="suggestion-content">${completionText}</div>
-          <button class="use-btn" onclick="useSuggestion()">Use Suggestion</button>
-          <button class="explain-btn" onclick="explainSuggestion()">Explain</button>
+      <div class="panel-wrapper">
+        <!-- Code Suggestion Panel -->
+        <div class="accordion ${completionText ? '' : 'empty'}">
+          <div class="accordion-header ${!completionText ? 'collapsed' : ''}">
+            <span>💡 Code Suggestion</span>
+          </div>
+          <div class="accordion-content ${completionText ? 'expanded' : ''}" id="suggestion-panel">
+            ${completionText ? `<div class="code-snippet" id="suggestion-content">${completionText}</div>
+            <div class="button-group">
+              <button class="use-btn" onclick="useSuggestion()">Use Suggestion</button>
+              <button class="explain-btn" onclick="explainSuggestion()">Explain</button>
+            </div>` : '<div class="empty-state">No suggestions yet. Write code to get started!</div>'}
+          </div>
         </div>
-      </div>
 
-      <!-- Explanation Panel -->
-      <div class="accordion">
-        <div class="accordion-header">Code Explanation</div>
-        <div class="accordion-content expanded" id="explanation-panel">
-          ${explanationText}
-          <button class="use-btn" onclick="clearExplanation()">Clear</button>
+        <!-- Explanation Panel -->
+        <div class="accordion ${explanationText ? '' : 'empty'}">
+          <div class="accordion-header ${!explanationText ? 'collapsed' : ''}">
+            <span>📖 Code Explanation</span>
+          </div>
+          <div class="accordion-content ${explanationText ? 'expanded' : ''}" id="explanation-panel">
+            ${explanationText ? `<div class="explanation-content">${explanationText}</div>
+            <div class="button-group">
+              <button class="clear-btn" onclick="clearExplanation()">✕ Clear</button>
+            </div>` : '<div class="empty-state">Explanations will appear here. Use "Explain" to get started.</div>'}
+          </div>
         </div>
       </div>
 
@@ -561,6 +671,22 @@ function showSuggestionInSideWindow(suggestion: string, explanation: string) {
           const vscode = acquireVsCodeApi();
           vscode.postMessage({ command: 'clearExplanation' });
         }
+
+        // Add accordion toggle functionality
+        document.querySelectorAll('.accordion-header').forEach(header => {
+          header.addEventListener('click', () => {
+            const content = header.nextElementSibling;
+            const isExpanded = content.classList.contains('expanded');
+            
+            if (isExpanded) {
+              content.classList.remove('expanded');
+              header.classList.add('collapsed');
+            } else {
+              content.classList.add('expanded');
+              header.classList.remove('collapsed');
+            }
+          });
+        });
       </script>
     </body>
     </html>
