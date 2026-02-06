@@ -188,18 +188,28 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('extension.openInChatbot', (selectedText: string) => {
-      GPTSessionManager.getLLMExplanation(selectedText, "what").then(explanation => {
-        const editor = vscode.window.activeTextEditor;
-        let code: string="";
-        if (!editor) {
-            vscode.window.showErrorMessage('No active editor found. Please open a file to get context.');
-        } else{
-          const document = editor.document;
-          code = document.getText();
-        }
-        showSuggestionInChatbot(explanation, code);
-      });
+    vscode.commands.registerCommand('extension.openInChatbot', async (selectedText: string) => {
+      const editor = vscode.window.activeTextEditor;
+      let code: string = "";
+      if (!editor) {
+        vscode.window.showErrorMessage('No active editor found. Please open a file to get context.');
+        return;
+      } else {
+        const document = editor.document;
+        code = document.getText();
+      }
+
+      // Get explanation
+      const explanation = await GPTSessionManager.getLLMExplanation(selectedText, "what");
+      
+      // Get improvement suggestions
+      const improvementPrompt = `Provide 2-3 concise suggestions to improve this code:\n${selectedText}`;
+      const improvements = await GPTSessionManager.getLLMExplanation(selectedText, "why");
+      
+      // Format comprehensive message
+      const comprehensiveMessage = `Here's my analysis of your selected code:\n\n**What it does:**\n${explanation}\n\n**How to improve it:**\n${improvements}\n\nWhat would you like to do next? I can help you refactor this code, add error handling, optimize performance, or explain any part in more detail.`;
+      
+      showSuggestionInChatbot(comprehensiveMessage, code);
     })
   );
 
@@ -745,7 +755,11 @@ export function showSuggestionInChatbot(suggestion: string, contextText: string)
 	vscode.window.showInformationMessage(suggestion);
   
   ChatbotPanel.createOrShow(vscode.extensions.getExtension(extension_id)!.extensionUri, contextText);
-  ChatbotPanel.postMessage(suggestion);
+  
+  // Wait for webview to be ready before posting message
+  setTimeout(() => {
+    ChatbotPanel.postMessage(suggestion);
+  }, 500);
 }
 
 

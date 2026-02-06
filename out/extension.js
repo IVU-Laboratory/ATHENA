@@ -184,19 +184,25 @@ function activate(context) {
             showSuggestionInSideWindow("", explanation);
         });
     }));
-    context.subscriptions.push(vscode.commands.registerCommand('extension.openInChatbot', (selectedText) => {
-        GPT_1.GPTSessionManager.getLLMExplanation(selectedText, "what").then(explanation => {
-            const editor = vscode.window.activeTextEditor;
-            let code = "";
-            if (!editor) {
-                vscode.window.showErrorMessage('No active editor found. Please open a file to get context.');
-            }
-            else {
-                const document = editor.document;
-                code = document.getText();
-            }
-            showSuggestionInChatbot(explanation, code);
-        });
+    context.subscriptions.push(vscode.commands.registerCommand('extension.openInChatbot', async (selectedText) => {
+        const editor = vscode.window.activeTextEditor;
+        let code = "";
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor found. Please open a file to get context.');
+            return;
+        }
+        else {
+            const document = editor.document;
+            code = document.getText();
+        }
+        // Get explanation
+        const explanation = await GPT_1.GPTSessionManager.getLLMExplanation(selectedText, "what");
+        // Get improvement suggestions
+        const improvementPrompt = `Provide 2-3 concise suggestions to improve this code:\n${selectedText}`;
+        const improvements = await GPT_1.GPTSessionManager.getLLMExplanation(selectedText, "why");
+        // Format comprehensive message
+        const comprehensiveMessage = `Here's my analysis of your selected code:\n\n**What it does:**\n${explanation}\n\n**How to improve it:**\n${improvements}\n\nWhat would you like to do next? I can help you refactor this code, add error handling, optimize performance, or explain any part in more detail.`;
+        showSuggestionInChatbot(comprehensiveMessage, code);
     }));
     //temporaneo
     vscode.workspace.onDidChangeConfiguration(onConfigurationChanged); // Update settings automatically on change.
@@ -688,7 +694,10 @@ function clearExplanationPanel() {
 function showSuggestionInChatbot(suggestion, contextText) {
     vscode.window.showInformationMessage(suggestion);
     ChatbotPanel_1.ChatbotPanel.createOrShow(vscode.extensions.getExtension(extension_id).extensionUri, contextText);
-    ChatbotPanel_1.ChatbotPanel.postMessage(suggestion);
+    // Wait for webview to be ready before posting message
+    setTimeout(() => {
+        ChatbotPanel_1.ChatbotPanel.postMessage(suggestion);
+    }, 500);
 }
 /* ----------- Configuration related functions ------------ */
 function onConfigurationChanged(event) {

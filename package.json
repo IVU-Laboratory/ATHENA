@@ -32,7 +32,7 @@
       },
       {
         "command": "athena.openSettingsWizard",
-        "title": "Open Settings Wizard"
+        "title": "ATHENA: Settings"
       }
     ],
     "keybindings": [
@@ -45,13 +45,17 @@
         "command": "athena.toggleAutomaticSuggestions",
         "key": "ctrl+alt+a",
         "when": "editorTextFocus"
-      },
-      {
-        "command": "athena.openSettingsWizard",
-        "key": "ctrl+alt+t",
-        "when": "editorTextFocus"
       }
     ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "athena.openSettingsWizard",
+          "group": "navigation",
+          "when": "editorTextFocus"
+        }
+      ]
+    },
     "configuration": {
       "type": "object",
       "title": "ATHENA - Code Completion",

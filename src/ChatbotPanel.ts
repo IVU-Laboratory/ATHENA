@@ -66,7 +66,7 @@ export class ChatbotPanel {
   public static postMessage(message: string) {
     vscode.window.showInformationMessage(message)
     if (ChatbotPanel.currentPanel) {
-      ChatbotPanel.currentPanel._panel.webview.postMessage({ text: message });
+      ChatbotPanel.currentPanel._panel.webview.postMessage({ text: message, type: 'assistant' });
     }
   }
 
