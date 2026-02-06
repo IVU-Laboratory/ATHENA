@@ -102,12 +102,23 @@ export class ChatbotPanel {
 			<script defer nonce="${nonce}" src="${jsCodeURI}"></script>
 		</head>
 		<body>
-			<h3>Chatbot</h3>
-			<div id="chatbot-content" class="chatbot-container"></div>
-			<span>
-				<input type="text" id="user-input" placeholder="Type a message..."/>
-				<button id="chatbotSendBtn">Send</button>
-			</span>
+			<div class="chatbot-wrapper">
+				<div class="chatbot-header">
+					<h2>AI Coding Assistant</h2>
+					<p class="chatbot-subtitle">Ask anything about your code</p>
+				</div>
+				<div id="chatbot-content" class="chatbot-container"></div>
+				<div class="chatbot-loading" id="loading-indicator" style="display: none;">
+					<span class="spinner"></span>
+					<span>AI is thinking...</span>
+				</div>
+				<div class="chatbot-input-wrapper">
+					<input type="text" id="user-input" class="chatbot-input" placeholder="Type your question here..." autocomplete="off"/>
+					<button id="chatbotSendBtn" class="chatbot-send-btn" title="Send message (Enter)">
+						<span class="send-icon">➤</span>
+					</button>
+				</div>
+			</div>
 		</body>
 		</html>`;
   }

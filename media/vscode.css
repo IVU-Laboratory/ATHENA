@@ -90,12 +90,195 @@ textarea::placeholder {
 	color: var(--vscode-input-placeholderForeground);
 }
 
+.chatbot-wrapper {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	padding: 0;
+	margin: 0;
+	gap: 0;
+}
+
+.chatbot-header {
+	padding: 16px var(--container-padding);
+	border-bottom: 1px solid var(--vscode-editorGroup-border);
+	background: linear-gradient(135deg, var(--vscode-editor-background), var(--vscode-editorGroupHeader-tabsBackground));
+	flex-shrink: 0;
+}
+
+.chatbot-header h2 {
+	margin: 0 0 4px 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.chatbot-subtitle {
+	margin: 0;
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+}
+
 .chatbot-container {
-  max-height: 300px;
-  overflow-y: auto;
+	flex: 1;
+	overflow-y: auto;
+	padding: 16px var(--container-padding);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 	color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-editorGroup-border);
-  padding: 10px;
+}
+
+.chatbot-container > div {
+	animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.chatbot-container div.user {
+	display: flex;
+	justify-content: flex-end;
+	margin-left: 40px;
+}
+
+.chatbot-container div.user > span:first-child {
+	display: none;
+}
+
+.chatbot-container div.user > span:last-child {
+	background: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+	padding: 8px 12px;
+	border-radius: 8px 2px 8px 8px;
+	word-wrap: break-word;
+	max-width: 85%;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.chatbot-container div.assistant {
+	display: flex;
+	flex-direction: column;
+	margin-right: 40px;
+	gap: 4px;
+}
+
+.chatbot-container div.assistant > span:first-child {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--vscode-descriptionForeground);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.chatbot-container div.assistant > span:last-child {
+	background: var(--vscode-editorWidget-background);
+	color: var(--vscode-input-foreground);
+	padding: 10px 12px;
+	border-radius: 2px 8px 8px 8px;
+	border-left: 3px solid var(--vscode-textLink-foreground);
+	word-wrap: break-word;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.chatbot-loading {
+	display: none;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	margin-right: 40px;
+	color: var(--vscode-descriptionForeground);
+	font-size: 12px;
+}
+
+.chatbot-loading[style*="display: flex"] {
+	display: flex !important;
+}
+
+.spinner {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border: 2px solid var(--vscode-descriptionForeground);
+	border-top-color: var(--vscode-textLink-foreground);
+	border-radius: 50%;
+	animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+
+.chatbot-input-wrapper {
+	display: flex;
+	gap: 8px;
+	padding: 12px var(--container-padding);
+	border-top: 1px solid var(--vscode-editorGroup-border);
+	background: var(--vscode-editor-background);
+	flex-shrink: 0;
+}
+
+.chatbot-input {
+	flex: 1;
+	padding: 10px 12px !important;
+	border: 1px solid var(--vscode-input-border) !important;
+	border-radius: 4px;
+	background-color: var(--vscode-input-background) !important;
+	color: var(--vscode-input-foreground) !important;
+	font-size: 13px;
+	transition: border-color 0.2s ease;
+}
+
+.chatbot-input:focus {
+	border-color: var(--vscode-focusBorder) !important;
+	outline: none;
+}
+
+.chatbot-input::placeholder {
+	color: var(--vscode-input-placeholderForeground) !important;
+}
+
+.chatbot-send-btn {
+	width: auto !important;
+	min-width: 44px;
+	padding: 10px 12px !important;
+	border-radius: 4px;
+	background: var(--vscode-button-background) !important;
+	color: var(--vscode-button-foreground) !important;
+	border: 1px solid transparent;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 16px;
+	transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.chatbot-send-btn:hover {
+	background: var(--vscode-button-hoverBackground) !important;
+}
+
+.chatbot-send-btn:active {
+	transform: scale(0.95);
+}
+
+.chatbot-send-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.send-icon {
+	display: inline-block;
 }
  
 #user-input {

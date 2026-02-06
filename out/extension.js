@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.showSuggestionInChatbot = showSuggestionInChatbot;
@@ -38,6 +48,7 @@ const dotenv = __importStar(require("dotenv"));
 const path = __importStar(require("path"));
 let typingTimeout;
 let chatbotProvider;
+let lastActiveEditor;
 let proactiveCompletionListener; // The event listener for EVERY proactive suggestion method
 let InlineCompletionManager; // The completion provider for the inline suggestions
 let TooltipCompletionManager; // The completion provider for the tooltip suggestions 
@@ -187,6 +198,7 @@ function activate(context) {
             showSuggestionInChatbot(explanation, code);
         });
     }));
+    //temporaneo
     vscode.workspace.onDidChangeConfiguration(onConfigurationChanged); // Update settings automatically on change.
     //addButtonsToEditor(context); NON FUNZIONA
 }
@@ -233,6 +245,7 @@ async function triggerSuggestion(document, position) {
     const suggestion = await GPT_1.GPTSessionManager.getLLMSuggestion(contextText, includeDocumentation, commentsGranularity);
     const editor = vscode.window.activeTextEditor;
     if (editor) {
+        lastActiveEditor = editor;
         switch (displayMode) {
             case 'tooltip': // this should only be called when the user asks for a suggestion (not proactively - for that, there is the completionProvider)
                 if (triggerMode != settings_1.TriggerMode.Proactive) {
@@ -349,7 +362,7 @@ function showSuggestionInSideWindow(suggestion, explanation) {
     </div>
   `;
     }
-    if (Sidepanel == null) {
+    if (Sidepanel == undefined) {
         Sidepanel = vscode.window.createWebviewPanel('codeSuggestion', 'Code Suggestion', vscode.ViewColumn.Beside, {
             enableScripts: true,
         });
@@ -366,6 +379,8 @@ function showSuggestionInSideWindow(suggestion, explanation) {
                 focusEditorAndInsertSuggestion(message.suggestion);
                 break;
             case 'explainSuggestion':
+                //vscode.window.showErrorMessage('Got here.');
+                clearExplanationPanel();
                 GPT_1.GPTSessionManager.getLLMExplanation(message.suggestion, "why").then(exp => {
                     showSuggestionInSideWindow(message.suggestion, exp);
                 });
@@ -509,15 +524,23 @@ function showSuggestionInSideWindow(suggestion, explanation) {
 }
 // Helper function to focus the editor and insert the suggestion
 function focusEditorAndInsertSuggestion(suggestion) {
-    vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup').then(() => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showErrorMessage('No active editor found.');
-            return;
+    let editor = lastActiveEditor || vscode.window.activeTextEditor;
+    // If still not available, fallback to the first visible editor.
+    if (!editor) {
+        const editors = vscode.window.visibleTextEditors;
+        if (editors && editors.length > 0) {
+            editor = editors[0];
+            vscode.window.showTextDocument(editor.document, editor.viewColumn);
         }
-        const selection = editor.selection;
+    }
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor found.');
+        return;
+    }
+    // Bring focus back to the editor group and then insert the suggestion.
+    vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup').then(() => {
         editor.edit((editBuilder) => {
-            editBuilder.replace(selection, suggestion);
+            editBuilder.replace(editor.selection, suggestion);
         });
     });
 }
